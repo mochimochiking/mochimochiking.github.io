@@ -7,12 +7,12 @@
 body{
   margin: 0;
   width: 100%;
-  font-family: Source Han Sans K;
+  font-family: "Source Han Sans K";
 }
 .title{
   position: fixed;
   top: 0;
-  background-color: #232;
+  background-color: #233;
   color: #eed;
   width: 100%;
   font-size: 500%;
@@ -25,11 +25,12 @@ body{
   font-size: 500%;
   text-align: center;
   border: solid;
+  font-family: "Source Han Sans K";
 }
 .keyboard{
   position: fixed;
   bottom: 0;
-  background-color: #232;
+  background-color: #233;
   width: 100%;
 }
 .keyboard:after {
@@ -60,17 +61,14 @@ body{
   </head>
   <body>
     <div class="title">중세 한국어 입력</div>
-    <input class="output" id="output" value="">
+    <span class="output" id="output" value=""></span>
     <div class="keyboard" id="keyboard">
     </div>
     <script>
-let keys = ["ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ", "ㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ", "⇧ㅋㅌㅊㅍㅠㅜㅡ⇦"];
+let keys = ["ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ", "ㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ", "⇧ㅋㅌㅊㅍㅠㅜㅡ〮⇦"];
 const keyboard = $("#keyboard");
 let keyMord = 0;
-/*0のときㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ⇦
-1のときㅃㅉㄸㄲㅆㅛㅕㅑㅒㅖㅿㆁㆀㆆㆅㅗㅓㅏㅣㆍ↑ㅋㅌㅊㅍㅠㅜㅡ⇦*/
 let makeKeyboard = () => {
-  keyboard.innerHTML = `<div class="space" style="top:77.5%; left:11%"> </div>`;
   for(let row in keys){
     for(let key=0; key<keys[row].length; key++){
       let div = $("<div>")
@@ -81,24 +79,38 @@ let makeKeyboard = () => {
         div.addClass("shiftKey")
         .on({click: ()=>{
           if(keyMord == 0){
-            changeKey("ㅃㅉㄸㄲㅆㅛㅕㅑㅒㅖㅿㆁㆀㆆㆅㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ⇦");
+            changeKey("ㅃㅉㄸㄲㅆㅛㅕㅑㅒㅖㅿㅥㆀㆆㆅㅗㅓㅏㅣㆍ⇧ㆁㅌㅊㅍㅠㅜㅡ〯⇦");
             keyMord = 1;
             $(".shiftKey").css({backgroundColor: "#334", color: "#eed"});
           }else{
-            changeKey("ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ⇦");
+            changeKey("ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ〮⇦");
             keyMord = 0;
             $(".shiftKey").css({backgroundColor: "#eed", color: "#001"});
           }
         }});
+      }else if(keys[row][key]=="⇦"){
+        div.on({click: ()=>{
+          keyText = keyText.substr(0, keyText.length-1);
+          $("#output").text(keyAdapt(keyText));
+        }});
       }else{
         div.on({click: ()=>{
-          document.getElementById("output").value+=keys[row][key];
+          keyText+=div.text();
+          $("#output").text(keyAdapt(keyText));
+          changeKey("ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ〮⇦");
+          keyMord = 0;
+          $(".shiftKey").css({backgroundColor: "#eed", color: "#001"})
         }});
       }
       keyboard.append(div);
     }
+    keyboard.append($("<div>").addClass("space").css({top: "77.5%", left:"11%"}).on({click: ()=>{
+      keyText+=" ";
+      $("#output").text(keyAdapt(keyText));
+    }}));
   }
 }
+
 let changeKey = txt => {
   const keys = $(".key");
   for(let i=0; i<keys.length; i++){
@@ -106,7 +118,82 @@ let changeKey = txt => {
   }
 }
 
+let keyAdapt = txt => {
+  txt = txt.replace(/ㄹㄱㅅ/g, "ㅩ")
+  .replace(/ㄹㅂㅅ/g, "ㅫ")
+  .replace(/ㅂㅅㄱ/g, "ㅴ")
+  .replace(/ㅂㅅㄷ/g, "ㅵ")
+  .replace(/ㄱㅅ/g, "ㄳ")
+  .replace(/ㄴㅈ/g, "ㄵ")
+  .replace(/ㄴㅎ/g, "ㄶ")
+  .replace(/ㄹㄱ/g, "ㄺ")
+  .replace(/ㄹㅁ/g, "ㄻ")
+  .replace(/ㄹㅂ/g, "ㄼ")
+  .replace(/ㄹㅅ/g, "ㄽ")
+  .replace(/ㄹㅌ/g, "ㄾ")
+  .replace(/ㄹㅍ/g, "ㄿ")
+  .replace(/ㄹㅎ/g, "ㅀ")
+  .replace(/ㅂㅅ/g, "ㅄ")
+  .replace(/ㄴㄷ/g, "ㅦ")
+  .replace(/ㄴㅅ/g, "ㅧ")
+  .replace(/ㄴㅿ/g, "ㅨ")
+  .replace(/ㄹㄷ/g, "ㅪ")
+  .replace(/ㄹㅿ/g, "ㅬ")
+  .replace(/ㄹㆆ/g, "ㅭ")
+  .replace(/ㅁㅂ/g, "ㅮ")
+  .replace(/ㅁㅅ/g, "ㅯ")
+  .replace(/ㅁㅿ/g, "ㅰ")
+  .replace(/ㅁㅇ/g, "ㅱ")
+  .replace(/ㅂㄱ/g, "ㅲ")
+  .replace(/ㅂㄷ/g, "ㅳ")
+  .replace(/ㅂㅈ/g, "ㅶ")
+  .replace(/ㅂㅌ/g, "ㅷ")
+  .replace(/ㅂㅇ/g, "ㅸ")
+  .replace(/ㅃㅇ/g, "ㅹ")
+  .replace(/ㅅㄱ/g, "ㅺ")
+  .replace(/ㅅㄴ/g, "ㅻ")
+  .replace(/ㅅㄷ/g, "ㅼ")
+  .replace(/ㅅㅂ/g, "ㅽ")
+  .replace(/ㅅㅈ/g, "ㅾ")
+  .replace(/ㆁㅅ/g, "ㆂ")
+  .replace(/ㆁㅿ/g, "ㆃ")
+  .replace(/ㅍㅇ/g, "ㆄ")
+  .replace(/ㅗㅏ/g, "ㅘ")
+  .replace(/ㅗㅐ/g, "ㅙ")
+  .replace(/ㅗㅣ/g, "ㅚ")
+  .replace(/ㅜㅓ/g, "ㅝ")
+  .replace(/ㅜㅔ/g, "ㅞ")
+  .replace(/ㅜㅣ/g, "ㅟ")
+  .replace(/ㅛㅑ/g, "ㆇ")
+  .replace(/ㅛㅒ/g, "ㆈ")
+  .replace(/ㅛㅣ/g, "ㆉ")
+  .replace(/ㅠㅕ/g, "ㆊ")
+  .replace(/ㅠㅖ/g, "ㆋ")
+  .replace(/ㆍㅣ/g, "ㆎ");
+  let adapted = "";
+  for(let i=0; i<txt.length; i++){
+    if("ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣㆇㆈㆉㆊㆋㆌㆍㆎ".match(txt[i])){
+      adapted += "ᅡᅢᅣᅤᅥᅦᅧᅨᅩᅪᅫᅬᅭᅮᅯᅰᅱᅲᅳᅴᅵᆄᆅᆈᆑᆒᆔᆞᆡ"
+      ["ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣㆇㆈㆉㆊㆋㆌㆍㆎ".match(txt[i]).index];
+    }else{
+      if(i!=txt.length-1 && "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣㆇㆈㆉㆊㆋㆌㆍㆎ".match(txt[i+1])){
+        adapted += ("ᄀᄁᆪᄂᆬᆭᄃᄄᄅᆰᆱᆲᆳᆴᆵᆶᄆᄇᄈᄡᄉᄊᄋᄌᄍᄎᄏᄐᄑᄒ"+
+        "ᄔᄕᇇᇈᇌᇎᇓᇗᇙᄜᇝᇟᄝᄞᄠᄢᄣᄧᄩᄫᄬᄭᄮᄯᄲᄶᅀᅇᅌᇱᇲᅗᅘᅙ ")
+        [("ㄱㄲㄳㄴㄵㄶㄷㄸㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅃㅄㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"+
+        "ㅥㅦㅧㅨㅩㅪㅫㅬㅭㅮㅯㅰㅱㅲㅳㅴㅵㅶㅷㅸㅹㅺㅻㅼㅽㅾㅿㆀㆁㆂㆃㆄㆅㆆ ").match(txt[i]).index];
+      }else{
+        adapted += ("ᆨᆩᆪᆫᆬᆭᆮᄄᆯᆰᆱᆲᆳᆴᆵᆶᆷᆸᄈᆹᆺᆻᆼᆽᄍᆾᆿᇀᇁᇂ"+
+        "ᄔᇆᇇᇈᇌᇎᇓᇗᇙᇜᇝᇟᇢᄞᄠᄢᄣᄧᄩᇦᄬᇧᄮᇨᇪᄶᇫᇮᇰᇱᇲᇴᅘᇹ ")
+        [("ㄱㄲㄳㄴㄵㄶㄷㄸㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅃㅄㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"+
+        "ㅥㅦㅧㅨㅩㅪㅫㅬㅭㅮㅯㅰㅱㅲㅳㅴㅵㅶㅷㅸㅹㅺㅻㅼㅽㅾㅿㆀㆁㆂㆃㆄㆅㆆ ").match(txt[i]).index];
+      }
+    }
+  }
+  return adapted;
+}
 makeKeyboard();
+
+let keyText = "";
     </script>
   </body>
 </html>
