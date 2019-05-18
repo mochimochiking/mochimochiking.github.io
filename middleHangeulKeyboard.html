@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<style>
+body{
+  margin: 0;
+  width: 100%;
+  font-family: Source Han Sans K;
+}
+.title{
+  position: fixed;
+  top: 0;
+  background-color: #232;
+  color: #eed;
+  width: 100%;
+  font-size: 500%;
+  text-align: center;
+}
+.output{
+  position: fixed;
+  top: 20%;
+  width: 100%;
+  font-size: 500%;
+  text-align: center;
+  border: solid;
+}
+.keyboard{
+  position: fixed;
+  bottom: 0;
+  background-color: #232;
+  width: 100%;
+}
+.keyboard:after {
+  display: block;
+  content: "";
+  height: 0px;
+  padding-bottom: 60%; /* 高さを幅の60%に固定 */
+}
+.keyboard *{
+  position: absolute;
+}
+.key{
+  text-align: center;
+  background-color: #eed;
+  color: #001;
+  width: 8%;
+  height: 20%;
+  font-size: 500%;
+  font-weight: bold;
+}
+.space{
+  background-color: #eed;
+  width: 78%;
+  height: 20%;
+}
+</style>
+    <title>중세 한국어 입력</title>
+  </head>
+  <body>
+    <div class="title">중세 한국어 입력</div>
+    <input class="output" id="output" value="">
+    <div class="keyboard" id="keyboard">
+    </div>
+    <script>
+let keys = ["ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ", "ㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ", "⇧ㅋㅌㅊㅍㅠㅜㅡ⇦"];
+const keyboard = $("#keyboard");
+let keyMord = 0;
+/*0のときㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ⇦
+1のときㅃㅉㄸㄲㅆㅛㅕㅑㅒㅖㅿㆁㆀㆆㆅㅗㅓㅏㅣㆍ↑ㅋㅌㅊㅍㅠㅜㅡ⇦*/
+let makeKeyboard = () => {
+  keyboard.innerHTML = `<div class="space" style="top:77.5%; left:11%"> </div>`;
+  for(let row in keys){
+    for(let key=0; key<keys[row].length; key++){
+      let div = $("<div>")
+      .text(keys[row][key])
+      .addClass("key")
+      .css({top: `${2.5+25*row}%`, left: `${1+10*(key-keys[row].length/2+5)}%`});
+      if(keys[row][key]=="⇧"){
+        div.addClass("shiftKey")
+        .on({click: ()=>{
+          if(keyMord == 0){
+            changeKey("ㅃㅉㄸㄲㅆㅛㅕㅑㅒㅖㅿㆁㆀㆆㆅㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ⇦");
+            keyMord = 1;
+            $(".shiftKey").css({backgroundColor: "#334", color: "#eed"});
+          }else{
+            changeKey("ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔㅁㄴㅇㄹㅎㅗㅓㅏㅣㆍ⇧ㅋㅌㅊㅍㅠㅜㅡ⇦");
+            keyMord = 0;
+            $(".shiftKey").css({backgroundColor: "#eed", color: "#001"});
+          }
+        }});
+      }else{
+        div.on({click: ()=>{
+          document.getElementById("output").value+=keys[row][key];
+        }});
+      }
+      keyboard.append(div);
+    }
+  }
+}
+let changeKey = txt => {
+  const keys = $(".key");
+  for(let i=0; i<keys.length; i++){
+    $(".key").eq(i).text(txt[i]);
+  }
+}
+
+makeKeyboard();
+    </script>
+  </body>
+</html>
