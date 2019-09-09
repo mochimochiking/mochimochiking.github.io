@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="colorData.js"></script>
+    <script src="colorMain.js"></script>
+    <title>色図鑑</title>
+  </head>
+  <body>
+    <select id="select">
+      <option disabled selected>【選択してください】</option>
+      <option disabled>RGB色空間</option>
+        <option value="rgb.r">　R[赤]</option>
+        <option value="rgb.g">　G[緑]</option>
+        <option value="rgb.b">　B[青]</option>
+      <option disabled>CMYK色空間</option>
+        <option value="cmyk.c">　C[シアン]</option>
+        <option value="cmyk.m">　M[マゼンタ]</option>
+        <option value="cmyk.y">　Y[黄色]</option>
+        <option value="cmyk.k">　K[黒]</option>
+      <option disabled>HSV色空間</option>
+        <option value="hsv.h">　H[色相]</option>
+        <option value="hsv.s">　S[彩度]</option>
+        <option value="hsv.v">　V[明度]</option>
+      <option disabled>HLS色空間</option>
+        <option value="hls.h">　H[色相]</option>
+        <option value="hls.l">　L[輝度]</option>
+        <option value="hls.s">　S[彩度]</option>
+    </select>
+    <button type="button" onclick="sort();">ソート</button>
+    <input type="text" id="near">
+    <button type="button" onclick="search($('#near').val());">近い色を検索</button>
+    <div id="table" style="position:relative;"></div>
+  </body>
+</html>
