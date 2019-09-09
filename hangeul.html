@@ -1,0 +1,190 @@
+<style media="screen">
+  *{
+    font-size: 60px;
+    font-family: Cambria, Source Han Serif K;
+  }
+</style>
+<script>
+
+let korean = txt => {
+  const split = txt.split("");
+  for(let i in split){
+    let char = split[i].charCodeAt(0) - 0xac00;
+    let data = Array(3);
+    data[0] = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"[Math.floor(char/588)];
+    char %= 588;
+    data[1] = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"[Math.floor(char/28)];
+    char %= 28;
+    data[2] = "∅ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"[char];
+    split[i] = data;
+  }
+
+  for(let i in split){//連音化
+    i = parseInt(i);
+    if(i == split.length-1)break;
+    if(split[i][2] != "" && split[i+1][0] == "ㅇ"){
+      if("ㄱㄲㄴㄷㄹㅁㅂㅅㅆㅈㅊㅋㅌㅍ".indexOf(split[i][2])>=0){ //ㅇㅎは連音化しない
+        split[i+1][0] = split[i][2];
+        split[i][2] = "∅";
+      }else if(split[i][2] == "ㄳ"){
+        split[i][2] = "ㄱ"; split[i+1][0] = "ㅅ";
+      }else if(split[i][2] == "ㄵ"){
+        split[i][2] = "ㄴ"; split[i+1][0] = "ㅈ";
+      }else if(split[i][2] == "ㄶ"){
+        split[i][2] = "ㄴ";
+      }else if(split[i][2] == "ㄺ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㄱ";
+      }else if(split[i][2] == "ㄻ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅁ";
+      }else if(split[i][2] == "ㄼ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅂ";
+      }else if(split[i][2] == "ㄽ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅅ";
+      }else if(split[i][2] == "ㄾ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅌ";
+      }else if(split[i][2] == "ㄿ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅍ";
+      }else if(split[i][2] == "ㅀ"){
+        split[i][2] = "ㄹ";
+      }else if(split[i][2] == "ㅄ"){
+        split[i][2] = "ㅂ"; split[i+1][0] = "ㅅ";
+      }else if(split[i][2] == "ㅎ"){
+        split[i][2] = "∅";
+      }
+      if("ㄷㅌ".indexOf(split[i+1][0])>=0 && split[i+1][1]=="ㅣ"){
+        split[i+1][0] = "ㅈㅊ"["ㄷㅌ".indexOf(split[i+1][0])];
+      }
+    }
+  }
+
+  for(let i in split){//激音化
+    i = parseInt(i);
+    if(i == split.length-1)break;
+    if("ㄶㅀㅎ".indexOf(split[i][2])>=0 && "ㄱㄷㅂㅅㅈ".indexOf(split[i+1][0])>=0){
+      split[i][2] = "ㄴㄹ∅"["ㄶㅀㅎ".indexOf(split[i][2])];
+      split[i+1][0] = "ㅋㅌㅍㅆㅊ"["ㄱㄷㅂㅅㅈ".indexOf(split[i+1][0])];
+      if("ㄷㅌ".indexOf(split[i+1][0])>=0 && split[i+1][1]=="ㅣ"){
+        split[i+1][0] = "ㅈㅊ"["ㄷㅌ".indexOf(split[i+1][0])];
+      }
+    }
+    if(split[i][2] != "" && split[i+1][0] == "ㅎ"){
+      if("ㄱㄲㄴㄷㄹㅁㅂㅅㅆㅈㅊㅋㅌㅍ".indexOf(split[i][2])>=0){
+      split[i+1][0] = "ㅋㅋㄴㅌㄹㅁㅍㅌㅌㅊㅊㅋㅌㅍ"["ㄱㄲㄴㄷㄹㅁㅂㅅㅆㅈㅊㅋㅌㅍ".indexOf(split[i][2])];
+      split[i][2] = "∅";
+      }else if(split[i][2] == "ㄳ"){
+        split[i][2] = "ㄱ"; split[i+1][0] = "ㅅ";
+      }else if(split[i][2] == "ㄵ"){
+        split[i][2] = "ㄴ"; split[i+1][0] = "ㅊ";
+      }else if(split[i][2] == "ㄶ"){
+        split[i][2] = "ㄴ";
+      }else if(split[i][2] == "ㄺ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅋ";
+      }else if(split[i][2] == "ㄻ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅁ";
+      }else if(split[i][2] == "ㄼ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅍ";
+      }else if(split[i][2] == "ㄽ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅌ";
+      }else if(split[i][2] == "ㄾ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅌ";
+      }else if(split[i][2] == "ㄿ"){
+        split[i][2] = "ㄹ"; split[i+1][0] = "ㅍ";
+      }else if(split[i][2] == "ㅀ"){
+        split[i][2] = "ㄹ";
+      }else if(split[i][2] == "ㅄ"){
+        split[i][2] = "ㅂ"; split[i+1][0] = "ㅌ";
+      }else if(split[i][2] == "ㅎ"){
+        split[i][2] = "∅";
+      }
+      if("ㄷㅌ".indexOf(split[i+1][0])>=0){
+        split[i+1][0] = "ㅈㅊ"["ㄷㅌ".indexOf(split[i+1][0])];
+      }
+    }
+  }
+
+  for(let i in split){//濃音化
+    i = parseInt(i);
+    if(i == split.length-1)break;
+    if("ㄱㄲㄳㄵㄷㄺㄻㄼㄽㄾㄿㅂㅄㅅㅆㅈㅊㅋㅌㅍ".indexOf(split[i][2])>=0 && "ㄱㄷㅂㅅㅈ".indexOf(split[i+1][0])>=0){
+      split[i+1][0] = "ㄲㄸㅃㅆㅉ"["ㄱㄷㅂㅅㅈ".indexOf(split[i+1][0])];
+    }
+  }
+
+  for(let i in split){//終声
+    i = parseInt(i);
+    if("ㄲㄳㄵㄶㄺㄻㄼㄽㄾㄿㅀㅄㅅㅆㅈㅊㅋㅌㅍㅎ".indexOf(split[i][2])>=0){
+      split[i][2] = "ㄱㄱㄴㄴㄱㅁㄹㄹㄹㅂㄹㅂㄷㄷㄷㄷㄱㄷㅂㄷ"["ㄲㄳㄵㄶㄺㄻㄼㄽㄾㄿㅀㅄㅅㅆㅈㅊㅋㅌㅍㅎ".indexOf(split[i][2])]
+      if(i!=split.length-1 && split[i][2]=="ㄷ" && split[i+1][0]=="ㅅ"){
+        split[i][2]=="ㅅ"
+      };
+    }
+  }
+
+  for(let i in split){//鼻音化と流音化
+    i = parseInt(i);
+    if(i == split.length-1)break;
+    if("ㄱㄷㅂ".indexOf(split[i][2])>=0 && "ㄴㅁ".indexOf(split[i+1][0])>=0){
+      split[i][2] = "ㅇㄴㅁ"["ㄱㄷㅂ".indexOf(split[i][2])];
+    }
+    if("ㄱㅂ".indexOf(split[i][2])>=0 && split[i+1][0]=="ㄹ"){
+      split[i][2] = "ㅇㅁ"["ㄱㅂ".indexOf(split[i][2])];
+      split[i+1][0] ="ㄴ"
+    }
+    if("ㅁㅇ".indexOf(split[i][2])>=0 && split[i+1][0]=="ㄹ"){
+      split[i+1][0] ="ㄴ"
+    }
+    if((split[i][2]=="ㄹ" && split[i+1][0]=="ㄴ")||(split[i][2]=="ㄴ" && split[i+1][0]=="ㄹ")){
+      split[i][2] = "ㄹ"
+      split[i+1][0] ="ㄹ"
+    }
+  }
+
+  let pron = "";
+  for(let i of split){
+    pron += String.fromCharCode(0xac00
+    +"ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ".indexOf(i[0])*588
+    +"ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ".indexOf(i[1])*28
+    +"∅ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ".indexOf(i[2]));
+  }
+  let phone = "";
+  for(let i of split){
+    phone += i[0]=="ㅇ"?"":"gγndδrmbβsσㅇjζcktph"["ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ".indexOf(i[0])];
+    phone += ["a", "ɛ", "ya", "yɛ", "ɔ", "e", "yɔ", "ye", "o", "wa", "wɛ", "ö", "yo", "u", "wɔ", "we", "ü", "yu", "ɯ", "ɯi", "i"]["ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ".indexOf(i[1])];
+    phone += i[2]=="∅"?"":"∅kㄲㄳnㄵㄶtrㄺㄻㄼㄽㄾㄿㅀmpㅄsㅆŋㅈㅊㅋㅌㅍㅎ"["∅ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ".indexOf(i[2])];
+    console.log(phone);
+  }
+  return {pron: pron, phone: phone};
+}
+
+let change = txt => {
+  let pron = "";
+  let phone = "";
+  let word = "";
+  for(let i in txt){
+    i = parseInt(i);
+    if(!isHangeul(txt[i])){
+      pron += txt[i];
+      phone += txt[i]
+    }else{
+      word += txt[i];
+      if(!isHangeul(txt[i+1])){
+        pron += korean(word).pron;
+        phone += korean(word).phone;
+        word = "";
+      }
+    }
+  }
+  document.getElementById("pron").innerText = pron;
+  document.getElementById("phone").innerText = phone;
+}
+
+let isHangeul = txt => {
+  if(!txt)return false;
+  return 0xac00<=txt.charCodeAt(0) && txt.charCodeAt(0)<0xd7b0;
+}
+
+</script>
+<input type="text" id="textbox" oninput="change(document.getElementById('textbox').value);">
+<br>
+発音:<span style="border:none; background-color:#eee;" id="pron"></span><br>
+音素:/<span style="border:none; background-color:#eee;" id="phone"></span>/
