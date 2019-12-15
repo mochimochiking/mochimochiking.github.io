@@ -1,0 +1,22 @@
+<style>*{font-size: 50px; font-family:cambria, serif;}</style>
+<title>アクセント付き文字入力</title>
+<span>アクセント付き文字入力</span><br>
+<input type="text" id="input" oninput="change()">
+<script>
+function change(){
+  let table = [
+    ["D-", "Đ"], ["d-", "đ"], ["D/", "Ð"], ["d/", "ð"],
+    ["L/", "Ł"], ["l/", "ł"], ["O/", "Ø"], ["o/", "ø"],
+    ["@?", "¿"], ["@!", "¡"], ["SS+", "ẞ"], ["ss+", "ß"],
+    ["AE+", "Æ"], ["ae+", "æ"], ["OE+", "Œ"], ["oe+", "œ"],
+
+    ["_", "̄"], ["'", "́"], ["`", "̀"], ["^", "̂"], ["~", "̃"],
+    [":", "̈"], ["&", "̊"], [",", "̧"], ["\"", "̋"], [")", "̆"],
+    ["(", "̑"], [">", "̌"], ["*", "̇"], [".", "̣"], ["?", "̉"],
+    ["$", "̛"], ["<", "̨"], [";", "̦"]
+  ];
+  for(let i of table){
+    document.getElementById("input").value = document.getElementById("input").value.replace(i[0], i[1], "g");
+  }
+}
+</script>
