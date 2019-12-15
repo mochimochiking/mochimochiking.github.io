@@ -8,4 +8,7 @@
 
 ## 朝鮮語
 * [ハングル発音](hangeul.html)
+
+### キーボード
+* [アクセント付き文字入力](keyboard.html)
 * [中期朝鮮語キーボード](middleHangeulKeyboard.html)
