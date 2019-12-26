@@ -1,5 +1,6 @@
 # mochimochiking.github.io
 
+* [名前ランキング](name.html)
 ## Youtube
 * [Youtube用画像作成](youtubeImg.html)
 
