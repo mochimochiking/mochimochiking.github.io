@@ -1,7 +1,7 @@
-﻿<!DOCTYPE html>
-<html lang="ja">
-  <head>
-    <meta charset="utf-8">
+<!DOCTYPE html>
+<!-- saved from url=(0048)https://mochimochiking.github.io/youtubeImg.html -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
     <title></title>
     <style>
       *{
@@ -14,13 +14,13 @@
       }
     </style>
   </head>
-  <body bgColor="#eee">
-    <table><tr><td><canvas id="canvas1" width="1280" height="720"></canvas></td>
+  <body bgcolor="#eee">
+    <table><tbody><tr><td><canvas id="canvas1" width="1280" height="720"></canvas></td>
     <td><form name="form1">
       背景色:<input type="text" name="bgColor" value="white"><br>
-      背景:<input type="text" name="flg" value="">
-      国旗を拡大<input type="checkbox" name="zoom" value="zoom"><br>
-      国章:<input type="text" name="emb" value=" "><br>
+      背景:<input type="text" name="flg" value="https://www.rings.jp/images/image_space.png">
+      国旗を拡大<input type="checkbox" name="zoom" value="zoom" checked><br>
+      <!-- 国章:<input type="text" name="emb" value=" "><br> -->
       タイトル:<input type="text" name="title" value=""><br>
       日本語タイトル:<input type="text" name="titleJa" value=""><br>
       下の文1:<input type="text" name="sita1" value=""><br>
@@ -28,55 +28,67 @@
       歌詞:<textarea name="lyr" rows="4" cols="80">
 
 
-
       </textarea><br>
-      歌詞:<textarea name="lyr2" rows="4" cols="80">
-
+      歌詞:<textarea name="lyr2" rows="4" cols="80" autocomplete="off">
 
 
       </textarea><br>
       和訳:<textarea name="lyrJa" rows="4" cols="80">
 
 
-
 </textarea><br>
-      重ね:<textarea name="chunom" rows="4" cols="80">
+      <!-- 重ね:<textarea name="chunom" rows="4" cols="80">
 
 
 
-
-      </textarea><br>
+      </textarea><br> -->
       ルビ:<textarea name="ruby" rows="4" cols="80">
 
 
 
 
       </textarea>
+      ルビありか:<input type="range" name="isRuby" min="0" max="1"><br>
+      太さ:<input type="range" name="isBold" min="0" max="1"><br>
       状態:<select name="type">
         <option value="title">タイトル</option>
-        <option value="main" selected>メイン</option>
-        <option value="end">最後</option>
-        <option value="naraberu">並べる</option>
+        <option value="main4" selected="">メイン</option>
+        <!-- <option value="main5">メイン(5)</option> -->
+        <!-- <option value="end">最後</option> -->
+        <!-- <option value="naraberu">並べる</option> -->
       </select><br>
       フォント:<select name="font">
-        <option value="Arial">Arial</option>
         <option value="Calibri">Calibri</option>
-        <option value="Century">Century</option>
-        <option value="Cambria" selected>Cambria</option>
+        <option value="candara">candara</option>
+        <option value="Segoe UI">Segoe UI</option>
+        <option value="Cambria" selected="">Cambria</option>
+        <option value="Sitka Text">Sitka Text</option>
         <option value="Georgia">Georgia</option>
-        <option value="Papyrus">Papyrus</option>
         <option value="Times New Roman">Times New Roman</option>
+        <option value="Palatino Linotype">Palatino Linotype</option>
+        <option value="Constantia">Constantia</option>
+        <option value="Sylfaen">Sylfaen</option>
+        <option value="Garamond">Garamond</option>
+        <option value="Mistral">Mistral</option>
+        <option value="Segoe print">Segoe print</option>
+        <option value="Segoe script">Segoe script</option>
         <option value="FangSong">FangSong(中華)</option>
-        <option value="SimSun">SimSun(中華)</option>
         <option value="KaiTi">Kaiti(中華)</option>
+        <option value="丁永康硬笔楷书新版">丁永康硬笔楷书新版(中華)</option>
+        <option value="simhei">simhei(中華)</option>
+        <option value="simsun">simsun(中華)</option>
         <option value="KP PusKul">KP PusKul(朝鮮)</option>
         <option value="KP CheongPong">KP CheongPong(朝鮮)</option>
         <option value="KP KwangMyeong">KP KwangMyeong(朝鮮)</option>
-        <option value="PKS BG Galpil">PKS BG Galpil(朝鮮)</option>
-        <option value="Batang">Batang(韓国)</option>
+        <option value="EBS Hunminjeongeum R">EBS Hunminjeongeum R(韓国)</option>
+        <option value="Source Han Sans KR">Source Han Sans KR(韓国)</option>
+        <option value="BM DoHyeon">BM DoHyeon(韓国)</option>
+        <option value="BM JUA_TTF">BM JUA_TTF(韓国)</option>
+        <option value="tvN Enjoystories">tvN Enjoystories(韓国)</option>
+        <option value="DX별과그대 B">DX별과그대 B(韓国)</option>
+        <option value="EBS Hunminjeongeum R">EBS Hunminjeongeum R(韓国)</option>
+        <option value="Source Han Serif K">Source Han Serif K(韓国)</option>
         <option value="HGP明朝E">HGP明朝E(日本)</option>
-        <option value="Source Han Sans K">Source Han Sans K</option>
-        <option value="Source Han Serif K">Source Han Serif K</option>
       </select><br>
       文字色:<select name="color">
         <option value="black">black</option>
@@ -88,15 +100,15 @@
         <option value="0.25">0.25</option>
         <option value="0.5">0.5</option>
       </select><br>
-      <button type="button" onclick="update()">更新</button>
-    </form></td></tr></table>
+      <!-- <button type="button" onclick="update()">更新</button> -->
+    </form></td></tr></tbody></table>
     <script>
     function update(){
       let s = 1
 
       let bgColor = document.form1.bgColor.value;
       let flg = document.form1.flg.value;
-      let emb = document.form1.emb.value;
+      // let emb = document.form1.emb.value;
       let title = document.form1.title.value;
       let titleJa = document.form1.titleJa.value;
       let sita1 = document.form1.sita1.value;
@@ -104,8 +116,10 @@
       let text = document.form1.lyr.value.split("\n");
       let text2 = document.form1.lyr2.value.split("\n");
       let ja = document.form1.lyrJa.value.split("\n");
-      let chunom = document.form1.chunom.value.split("\n");
+      // let chunom = document.form1.chunom.value.split("\n");
       let ruby = document.form1.ruby.value.split("\n");
+      let isRuby = document.form1.isRuby.value;
+      let isBold = document.form1.isBold.value;
       let type = document.form1.type.value;
       let font = document.form1.font.value;
       let jpFont = "HGP明朝E";
@@ -113,12 +127,14 @@
       let alpha = document.form1.alpha.value;
 
       let ctx = document.getElementById("canvas1").getContext('2d');
-      ctx.clearRect(0, 0, 1280*s, 720*s);
-      ctx.fillStyle =　bgColor;
-      ctx.fillRect(0, 0, 1280*s, 720*s);//120*16, 120*9
+
       let img = new Image();
       img.src = flg;
       img.onload = () => {
+        ctx.clearRect(0, 0, 1280*s, 720*s);
+        ctx.fillStyle =　bgColor;
+        ctx.fillRect(0, 0, 1280*s, 720*s);//120*16, 120*9
+
         let x,w;
         x=0*s;
         w=1280*s;
@@ -127,7 +143,8 @@
         if((img.width/img.height>16/9&&!document.form1.zoom.checked)||(img.width/img.height<16/9&&document.form1.zoom.checked)){
           ctx.drawImage(img, 0, (720*s-1280*s*img.height/img.width)/2, 1280*s, 1280*s*img.height/img.width);
         }else{
-          ctx.drawImage(img, (1280*s-720*s*img.width/img.height)/2, 0, 720*s*img.width/img.height, 720*s);
+          // ctx.drawImage(img, (1280*s-720*s*img.width/img.height)/2, 0, 720*s*img.width/img.height, 720*s);
+          ctx.drawImage(img, 0, 0, 720*s*img.width/img.height, 720*s);
         }
         // ctx.drawImage(img,0,0,img.height*16/9,img.height,0,0,1280*s,720*s);
 
@@ -151,19 +168,19 @@
           ctx.font = "120px \""+jpFont+"\"";
           ctx.fillText(sita1, 640*s, 540*s, 1200*s);
           ctx.fillText(sita2, 640*s, 680*s, 1200*s);
-        }else if(type=="end"){
-          ctx.fillStyle = color=="black"?"white":"black";
-          ctx.globalAlpha = alpha;
-          ctx.fillRect(0*s, 0*s, 1280*s, 720*s);
-          ctx.globalAlpha = 1;
-          let img2 = new Image();
-          img2.src = emb;
-          img2.onload=()=>{
-            ctx.shadowColor = "black"
-            ctx.shadowBlur = 100*s;
-            ctx.drawImage(img2, 640*s-360*s/img2.height*img2.width, 0*s, 720*s/img2.height*img2.width, 720*s);
-          }
-        }else if(type=="main"){
+        // }else if(type=="end"){
+        //   ctx.fillStyle = color=="black"?"white":"black";
+        //   ctx.globalAlpha = alpha;
+        //   ctx.fillRect(0*s, 0*s, 1280*s, 720*s);
+        //   ctx.globalAlpha = 1;
+          // let img2 = new Image();
+          // img2.src = emb;
+          // img2.onload=()=>{
+          //   ctx.shadowColor = "black"
+          //   ctx.shadowBlur = 100*s;
+          //   ctx.drawImage(img2, 640*s-360*s/img2.height*img2.width, 0*s, 720*s/img2.height*img2.width, 720*s);
+          // }
+        }else if(type=="main4"||type=="main5"){
           ctx.fillStyle = color=="black"?"white":"black";
           ctx.globalAlpha = alpha;
           ctx.fillRect(0*s, 0, 1280*s, 720*s);
@@ -176,79 +193,105 @@
 
           for(let i=1; i<=2; i++){
             ctx.textAlign = "left";
-            if(true){
+            if(type=="main4"){
               ctx.fillStyle = color;
 
-              ctx.font = "bold 50px \""+font+"\"";
-              ctx.fillText(chunom[0], x+40*s, 55*s, w-80*s);
-              ctx.fillText(chunom[1], x+40*s, 235*s, w-80*s);
-              ctx.fillText(chunom[2], x+40*s, 415*s, w-80*s);
-              ctx.fillText(chunom[3], x+40*s, 595*s, w-80*s);
+              // ctx.font = "bold 50px \""+font+"\"";
+              // ctx.fillText(chunom[0], x+40*s, 55*s, w-80*s);
+              // ctx.fillText(chunom[1], x+40*s, 235*s, w-80*s);
+              // ctx.fillText(chunom[2], x+40*s, 415*s, w-80*s);
+              // ctx.fillText(chunom[3], x+40*s, 595*s, w-80*s);
 
+              // ctx.textAlign = "right";
               ctx.font = "bold 50px \""+font+"\"";
-              ctx.fillText(text[0], x+40*s, 55*s, w-80*s);
-              ctx.fillText(text[1], x+40*s, 235*s, w-80*s);
-              ctx.fillText(text[2], x+40*s, 415*s, w-80*s);
-              ctx.fillText(text[3], x+40*s, 595*s, w-80*s);
+              ctx.font = (isBold=="1"?"bold ":"normal ")+(65-isRuby*10+5)+"px \""+font+"\"";
+              ctx.fillText(text[0], x+40*s  , 70*s+15*s*isRuby-5*s+5*s, w-80*s);
+              ctx.fillText(text[1], x+40*s+0*s  , 250*s+15*s*isRuby-5*s+5*s, w-80*s);
+              ctx.fillText(text[2], x+40*s  , 430*s+15*s*isRuby-5*s+5*s, w-80*s);
+              ctx.fillText(text[3], x+40*s+0*s  , 610*s+15*s*isRuby-5*s+5*s, w-80*s);
 
+              ctx.textAlign = "left";
               ctx.fillStyle = color;
               ctx.font = "bold 40px \""+font+"\"";
               ctx.font = "40px \""+jpFont+"\"";
+              // ctx.font = "40px \"Georgia\"";
               // ctx.font = "40px \"Cambria\"";
+              ctx.font = "40px \"Calibri\"";
+              ctx.font = "40px \"HGP明朝E\"";
+              // ctx.font = "40px \"BIZ UDPゴシック\"";
+              // ctx.font = "40px \"Segoe UI\""
 
-              ctx.fillText(text2[0], x+40*s, 105*s, w-80*s);
-              ctx.fillText(text2[1], x+40*s, 285*s, w-80*s);
-              ctx.fillText(text2[2], x+40*s, 465*s, w-80*s);
-              ctx.fillText(text2[3], x+40*s, 645*s, w-80*s);
+              ctx.fillText(text2[0], x+40*s, 115*s+15*s*isRuby+5*s, w-80*s);
+              ctx.fillText(text2[1], x+40*s+0*s, 295*s+15*s*isRuby+5*s, w-80*s);
+              ctx.fillText(text2[2], x+40*s, 475*s+15*s*isRuby+5*s, w-80*s);
+              ctx.fillText(text2[3], x+40*s+0*s, 655*s+15*s*isRuby+5*s, w-80*s);
 
               ctx.globalAlpha = 1;
               ctx.font = "40px \""+jpFont+"\"";
-              ctx.fillText(ja[0], x+40*s, 150*s, w-40*s);
-              ctx.fillText(ja[1], x+40*s, 330*s, w-40*s);
-              ctx.fillText(ja[2], x+40*s, 510*s, w-40*s);
-              ctx.fillText(ja[3], x+40*s, 690*s, w-40*s);
+              ctx.font = "40px \"HGP明朝E\"";
+              // ctx.font = "40px \"BIZ UDPゴシック\"";
+              ctx.fillText(ja[0], x+40*s, 160*s+15*s*isRuby+5*s, w-40*s);
+              ctx.fillText(ja[1], x+40*s+0*s, 340*s+15*s*isRuby+5*s, w-40*s);
+              ctx.fillText(ja[2], x+40*s, 520*s+15*s*isRuby+5*s, w-40*s);
+              ctx.fillText(ja[3], x+40*s+0*s, 700*s+15*s*isRuby+5*s, w-40*s);
 
               ctx.font = "40px \""+font+"\"";
               ctx.font = "40px \"Cambria\"";
-              ctx.font = "italic 40px \"Calibri\"";
-              ctx.textAlign = "right";
-              ctx.fillText(ruby[0], w-40*s, 105*s, w-40*s);
-              ctx.fillText(ruby[1], w-40*s, 285*s, w-40*s);
-              ctx.fillText(ruby[2], w-40*s, 465*s, w-40*s);
-              ctx.fillText(ruby[3], w-40*s, 645*s, w-40*s);
+              ctx.font = "40px \"Calibri\"";
+              // ctx.font = "40px \""+jpFont+"\"";
+              ctx.font = "30px \""+font+"\"";
+              // ctx.textAlign = "right";
+              ctx.font = "30px \"kaiti\"";
+              ctx.font = "30px \"HGP明朝E\"";
+              ctx.font = "30px \"Source Han Sans KR\"";
+
+              ctx.fillText(ruby[0], x+40*s, 15*s+15*s*isRuby-5*s+5*s, w-40*s);
+              ctx.fillText(ruby[1], x+40*s+0*s, 195*s+15*s*isRuby-5*s+5*s, w-40*s);
+              ctx.fillText(ruby[2], x+40*s, 375*s+15*s*isRuby-5*s+5*s, w-40*s);
+              ctx.fillText(ruby[3], x+40*s+0*s, 555*s+15*s*isRuby-5*s+5*s, w-40*s);
             }else{
+              // ctx.fillStyle = color=="black"?"white":"black";
+              // ctx.globalAlpha = 0.1;
+              // ctx.fillRect(0, 288, 1280*s, 432*s);
+              // ctx.globalAlpha = 1;
+
               ctx.fillStyle = color;
               // ctx.fillStyle = "#ffde00";
               ctx.font = "bold 50px \""+font+"\"";
-              ctx.fillText(text[0], x+40*s, 45*s, w-80*s);
-              ctx.fillText(text[1], x+40*s, 185*s, w-80*s);
-              ctx.fillText(text[2], x+40*s, 325*s, w-80*s);
-              ctx.fillText(text[3], x+40*s, 465*s, w-80*s);
-              ctx.fillText(text[4], x+40*s, 605*s, w-80*s);
+              ctx.fillText(text[0], x+40*s, 50*s, w-80*s);
+              ctx.fillText(text[1], x+40*s, 190*s, w-80*s);
+              ctx.fillText(text[2], x+40*s, 330*s, w-80*s);
+              ctx.fillText(text[3], x+40*s, 470*s, w-80*s);
+              ctx.fillText(text[4], x+40*s, 610*s, w-80*s);
 
               ctx.font = "35px \""+jpFont+"\"";
 
-              ctx.fillText(text2[0], x+40*s, 85*s, w-80*s);
-              ctx.fillText(text2[1], x+40*s, 225*s, w-80*s);
-              ctx.fillText(text2[2], x+40*s, 365*s, w-80*s);
-              ctx.fillText(text2[3], x+40*s, 505*s, w-80*s);
-              ctx.fillText(text2[4], x+40*s, 645*s, w-80*s);
+              ctx.fillText(text2[0], x+40*s, 90*s, w-80*s);
+              ctx.fillText(text2[1], x+40*s, 230*s, w-80*s);
+              ctx.fillText(text2[2], x+40*s, 370*s, w-80*s);
+              ctx.fillText(text2[3], x+40*s, 510*s, w-80*s);
+              ctx.fillText(text2[4], x+40*s, 650*s, w-80*s);
 
               ctx.globalAlpha = 1;
               ctx.font = "35px \""+jpFont+"\"";
-              ctx.fillText(ja[0], x+40*s, 125*s, w-40*s);
-              ctx.fillText(ja[1], x+40*s, 265*s, w-40*s);
-              ctx.fillText(ja[2], x+40*s, 405*s, w-40*s);
-              ctx.fillText(ja[3], x+40*s, 545*s, w-40*s);
-              ctx.fillText(ja[4], x+40*s, 685*s, w-40*s);
+              ctx.font = "40px \"HGP明朝E\"";
+              ctx.fillText(ja[0], x+40*s, 130*s, w-40*s);
+              ctx.fillText(ja[1], x+40*s, 270*s, w-40*s);
+              ctx.fillText(ja[2], x+40*s, 410*s, w-40*s);
+              ctx.fillText(ja[3], x+40*s, 550*s, w-40*s);
+              ctx.fillText(ja[4], x+40*s, 690*s, w-40*s);
 
-              ctx.font = "35px \"Cambria\"";
-              ctx.textAlign = "right";
-              ctx.fillText(ruby[0], w-40*s, 85*s, w-40*s);
-              ctx.fillText(ruby[1], w-40*s, 225*s, w-40*s);
-              ctx.fillText(ruby[2], w-40*s, 365*s, w-40*s);
-              ctx.fillText(ruby[3], w-40*s, 505*s, w-40*s);
-              ctx.fillText(ruby[4], w-40*s, 645*s, w-40*s);
+              // ctx.font = "35px \"Cambria\"";
+              // ctx.textAlign = "right";
+              // ctx.fillText(ruby[0], w-40*s, 90*s, w-40*s);
+              // ctx.fillText(ruby[1], w-40*s, 230*s, w-40*s);
+              // ctx.fillText(ruby[2], w-40*s, 370*s, w-40*s);
+              // ctx.fillText(ruby[3], w-40*s, 510*s, w-40*s);
+              // ctx.fillText(ruby[4], w-40*s, 650*s, w-40*s);
+
+              // ctx.font = "70px \""+jpFont+"\"";
+              // ctx.fillText(ruby[0], w-40*s, 580*s, w-40*s);
+              // ctx.fillText(ruby[1], w-40*s, 650*s, w-40*s);
             }
           }
 
@@ -279,7 +322,14 @@
         }
       }
     }
-    window.onload = update();
+
+    for(let i of document.form1.getElementsByTagName("*")){
+      if(i.tagName!="BR"){
+        i.addEventListener("input", ()=>{update();});
+      }
+    }
+    window.onload = ()=>{update();};
     </script>
-  </body>
-</html>
+
+
+<iframe frameborder="0" scrolling="no" style="background-color: transparent; border: 0px; display: none;" src="./youtubeImg_files/saved_resource.html"></iframe><div id="GOOGLE_INPUT_CHEXT_FLAG" input="" input_stat="{&quot;tlang&quot;:true,&quot;tsbc&quot;:true,&quot;pun&quot;:true,&quot;mk&quot;:false,&quot;ss&quot;:true}" style="display: none;"></div></body></html>
