@@ -9,6 +9,7 @@
 
 ## 朝鮮語
 * [ハングル発音](hangeul.html)
+* [ギリシャ語発音](greek.html)
 
 ### キーボード
 * [アクセント付き文字入力](keyboard.html)
