@@ -1,0 +1,62 @@
+<title>ギリシャ語 発音</title>
+<style media="screen">
+  *{
+    font-size: 20px;
+    font-family: Cambria, Source Han Serif K;
+  }
+</style>
+<script>
+function change(txt){
+  txt = " "+txt.toLowerCase()+" ";
+  const list = [
+    ["α", "a"], ["ά", "á"], ["αι", "e"], ["αί", "é"], ["αυ", "ay"],
+    ["β", "v"],
+    ["γ", "ɣ"], ["γγ", "ŋ"], ["γκ", "ŋg"], [" γκ", " g"],
+    ["δ", "ð"],
+    ["ε", "e"], ["έ", "é"], ["ει", "i"], ["εί", "í"], ["ευ", "ey"],
+    ["ζ", "z"],
+    ["η", "i"], ["ή", "í"], ["ηυ", "iy"],
+    ["θ", "θ"],
+    ["ι", "i"], ["ί", "í"], ["ϊ", "i"], ["ιυ", "iy"],
+    ["κ", "k"],
+    ["λ", "l"],
+    ["μ", "m"], ["μπ", "mb"], [" μπ", " b"],
+    ["ν", "n"], ["ντ", "nd"], [" ντ", " d"],
+    ["ξ", "ks"],
+    ["ο", "o"], ["ό", "ó"], ["οι", "i"], ["οί", "í"], ["ου", "u"], ["ού", "ú"],
+    ["π", "p"],
+    ["ρ", "r"],
+    ["σ", "s"], ["ς", "s"],
+    ["τ", "t"], ["τζ", "dz"],
+    ["υ", "i"], ["ύ", "í"], ["ϋ", "i"], ["ΰ", "í"], ["υι", "i"], ["υί", "í"],
+    ["φ", "f"],
+    ["χ", "x"],
+    ["ψ", "ps"],
+    ["ω", "o"], ["ώ", "ó"]
+  ];
+  let output = "";
+  let pos = 0;
+  while(pos < txt.length){
+    let end = txt.length;
+    while(pos < end){
+      end --;
+      if(list.find(x=>x[0]==txt.substring(pos, end)))break;
+    }
+    if(pos == end){
+      output += txt[pos];
+      end++;
+    }else{
+      output += list.find(x=>x[0]==txt.substring(pos, end))[1];
+      console.log(txt.substring(pos, end));
+    }
+    pos = end;
+  }
+  output = output.replace(/k(?=[ie])/g, "c").replace(/g(?=[ie])/g, "ɟ").replace(/x(?=[ie])/g, "ç").replace(/ɣ(?=[ie])/g, "ʝ").replace(/ŋ(?=[ie])/g, "ŋʲ")
+  .replace(/mi(?=[aáeéiíoóuú])/g, "mɲ").replace(/y(?=[aáeéiíoóuúvɣʝŋgɟðzlmbndr])/g, "v").replace(/y(?=[θkcpstfxç])/g, "f");
+  output = output.substring(1, output.length-1);
+  return output;
+}
+</script>
+<textarea type="text" id="textbox" oninput="document.getElementById('pron').innerText=change(document.getElementById('textbox').value);"></textarea>
+<br>
+<span style="border:none; background-color:#eee;" id="pron"></span><br>
