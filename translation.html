@@ -1,0 +1,8 @@
+<script>
+fetch("https://script.google.com/macros/s/AKfycbw1Z01eukQZf-mk26AngRCQYDjr1t_HSVPlt5XlcPErPAaN5gw/exec?text=Hello&source=en&target=ja", {
+  method: "GET",
+}).then(response => response.text())
+.then(text => {
+  console.log(text);
+});
+</script>
