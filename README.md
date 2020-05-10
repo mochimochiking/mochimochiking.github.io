@@ -20,3 +20,6 @@
 ## リンク
 * [Twitter](https://twitter.com/mochimkchiking)
 * [Youtube](https://t.co/mvLGUaASOF?amp=1)
+* [はてなブログ](https://mochimkchiking.hatenablog.com/)
+* [Qiita](https://qiita.com/mochimkchiking)
+* [Github](https://github.com/mochimochiking)
