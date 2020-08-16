@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- saved from url=(0048)https://mochimochiking.github.io/youtubeImg.html -->
 <html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <title></title>
@@ -42,14 +41,14 @@
 
 
       </textarea><br> -->
-      ルビ:<textarea name="ruby" rows="4" cols="80">
+      <!-- ルビ:<textarea name="ruby" rows="4" cols="80">
 
 
 
 
-      </textarea>
-      ルビありか:<input type="range" name="isRuby" min="0" max="1"><br>
-      太さ:<input type="range" name="isBold" min="0" max="1"><br>
+      </textarea> -->
+      <!-- ルビありか:<input type="range" name="isRuby" min="0" max="1"><br> -->
+      太さ:<input type="range" name="isBold" min="100" max="900" step="100" selected="0"><br>
       状態:<select name="type">
         <option value="title">タイトル</option>
         <option value="main4" selected="">メイン</option>
@@ -88,6 +87,9 @@
         <option value="DX별과그대 B">DX별과그대 B(韓国)</option>
         <option value="EBS Hunminjeongeum R">EBS Hunminjeongeum R(韓国)</option>
         <option value="Source Han Serif K">Source Han Serif K(韓国)</option>
+        <option value="OSeong and HanEum">OSeong and HanEum(韓国)</option>
+        <option value="NanumGothicOTF">NanumGothicOTF(韓国)</option>
+        <option value="NanumMyeongjo">NanumMyeongjo(韓国)</option>
         <option value="HGP明朝E">HGP明朝E(日本)</option>
       </select><br>
       文字色:<select name="color">
@@ -117,8 +119,7 @@
       let text2 = document.form1.lyr2.value.split("\n");
       let ja = document.form1.lyrJa.value.split("\n");
       // let chunom = document.form1.chunom.value.split("\n");
-      let ruby = document.form1.ruby.value.split("\n");
-      let isRuby = document.form1.isRuby.value;
+      // let ruby = document.form1.ruby.value.split("\n");
       let isBold = document.form1.isBold.value;
       let type = document.form1.type.value;
       let font = document.form1.font.value;
@@ -143,8 +144,8 @@
         if((img.width/img.height>16/9&&!document.form1.zoom.checked)||(img.width/img.height<16/9&&document.form1.zoom.checked)){
           ctx.drawImage(img, 0, (720*s-1280*s*img.height/img.width)/2, 1280*s, 1280*s*img.height/img.width);
         }else{
-          // ctx.drawImage(img, (1280*s-720*s*img.width/img.height)/2, 0, 720*s*img.width/img.height, 720*s);
-          ctx.drawImage(img, 0, 0, 720*s*img.width/img.height, 720*s);
+          ctx.drawImage(img, (1280*s-720*s*img.width/img.height)/2, 0, 720*s*img.width/img.height, 720*s);
+          // ctx.drawImage(img, 0, 0, 720*s*img.width/img.height, 720*s);
         }
         // ctx.drawImage(img,0,0,img.height*16/9,img.height,0,0,1280*s,720*s);
 
@@ -160,9 +161,11 @@
 // ctx.fillText(title, 640*s, 360*s, 1200*s);
 // //
          ctx.fillText(title, 640*s, 150*s, 1200*s);
+         // ctx.fillText("молодежи мира", 640*s, 300*s, 1200*s);
           // ctx.font = "160px serif";
           ctx.font = "160px \""+jpFont+"\""
-          ctx.fillText(titleJa, 640*s, 360*s, 1200*s);
+          ctx.fillText(titleJa, 640*s, 360*s, 1200*s); //
+          // ctx.fillText(titleJa, 640*s, 480*s, 1200*s);
           // ctx.font = "60px serif";
           // ctx.fillText(title, 640*s, 400*s, 1200*s);
           ctx.font = "120px \""+jpFont+"\"";
@@ -204,51 +207,78 @@
 
               // ctx.textAlign = "right";
               ctx.font = "bold 50px \""+font+"\"";
-              ctx.font = (isBold=="1"?"bold ":"normal ")+(65-isRuby*10+5)+"px \""+font+"\"";
-              ctx.fillText(text[0], x+40*s  , 70*s+15*s*isRuby-5*s+5*s, w-80*s);
-              ctx.fillText(text[1], x+40*s+0*s  , 250*s+15*s*isRuby-5*s+5*s, w-80*s);
-              ctx.fillText(text[2], x+40*s  , 430*s+15*s*isRuby-5*s+5*s, w-80*s);
-              ctx.fillText(text[3], x+40*s+0*s  , 610*s+15*s*isRuby-5*s+5*s, w-80*s);
+              // ctx.font = "bold "+(65-isRuby*10+5)+"px \""+font+"\"";
+              // ctx.fillText(text[0], x+40*s  , 70*s-5*s+5*s, w-80*s);
+
+              ctx.font = "bold 75px \""+font+"\"";
+              // ctx.fillText("김일성", x+40*s  , 430*s-5*s+5*s, w-80*s);
+
+              ctx.font = isBold+" 65px \""+font+"\"";
+
+              ctx.fillText(text[0], x+40*s  , 70*s-5*s, w-80*s);
+              ctx.fillText(text[1], x+40*s+0*s  , 250*s-5*s, w-80*s);
+              ctx.fillText(text[2], x+40*s  , 430*s-5*s, w-80*s);
+              ctx.fillText(text[3], x+40*s+0*s  , 610*s-5*s, w-80*s);
+
+              // ctx.fillText(text[0], x+40*s  , 70*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[1], x+40*s  , 190*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[2], x+40*s  , 310*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[3], x+40*s  , 430*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[4], x+40*s  , 550*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[5], x+40*s  , 670*s-5*s+5*s, w-80*s);
+
+              // ctx.fillText(text[0], x+40*s  , 70*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[1], x+40*s  , 170*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[2], x+40*s  , 270*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[3], x+40*s  , 370*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[4], x+40*s  , 470*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[5], x+40*s  , 570*s-5*s+5*s, w-80*s);
+              // ctx.fillText(text[6], x+40*s  , 670*s-5*s+5*s, w-80*s);
 
               ctx.textAlign = "left";
               ctx.fillStyle = color;
               ctx.font = "bold 40px \""+font+"\"";
               ctx.font = "40px \""+jpFont+"\"";
               // ctx.font = "40px \"Georgia\"";
-              // ctx.font = "40px \"Cambria\"";
-              ctx.font = "40px \"Calibri\"";
-              ctx.font = "40px \"HGP明朝E\"";
-              // ctx.font = "40px \"BIZ UDPゴシック\"";
+              ctx.font = "40px \"Cambria\"";
+              // ctx.font = "40px \"Calibri\"";
+              // ctx.font = "40px \"HGP明朝E\"";
+              ctx.font = "45px \"UD デジタル 教科書体 NK-R\"";
               // ctx.font = "40px \"Segoe UI\""
+              ctx.font = "bold 40px \"Nom Na Tong\""
+              // ctx.font = "40px \"constantia\"";
 
-              ctx.fillText(text2[0], x+40*s, 115*s+15*s*isRuby+5*s, w-80*s);
-              ctx.fillText(text2[1], x+40*s+0*s, 295*s+15*s*isRuby+5*s, w-80*s);
-              ctx.fillText(text2[2], x+40*s, 475*s+15*s*isRuby+5*s, w-80*s);
-              ctx.fillText(text2[3], x+40*s+0*s, 655*s+15*s*isRuby+5*s, w-80*s);
+              ctx.font = "40px \"BIZ UDPゴシック\"";
+
+              ctx.fillText(text2[0], x+40*s, 115*s+0*s, w-80*s);
+              ctx.fillText(text2[1], x+40*s+0*s, 295*s+0*s, w-80*s);
+              ctx.fillText(text2[2], x+40*s, 475*s+0*s, w-80*s);
+              ctx.fillText(text2[3], x+40*s+0*s, 655*s+0*s, w-80*s);
 
               ctx.globalAlpha = 1;
               ctx.font = "40px \""+jpFont+"\"";
               ctx.font = "40px \"HGP明朝E\"";
-              // ctx.font = "40px \"BIZ UDPゴシック\"";
-              ctx.fillText(ja[0], x+40*s, 160*s+15*s*isRuby+5*s, w-40*s);
-              ctx.fillText(ja[1], x+40*s+0*s, 340*s+15*s*isRuby+5*s, w-40*s);
-              ctx.fillText(ja[2], x+40*s, 520*s+15*s*isRuby+5*s, w-40*s);
-              ctx.fillText(ja[3], x+40*s+0*s, 700*s+15*s*isRuby+5*s, w-40*s);
+              ctx.font = "40px \"BIZ UDPゴシック\"";
+              ctx.font = "45px \"UD デジタル 教科書体 NK-R\"";
+              ctx.fillText(ja[0], x+40*s, 160*s+5*s, w-40*s);
+              ctx.fillText(ja[1], x+40*s+0*s, 340*s+5*s, w-40*s);
+              ctx.fillText(ja[2], x+40*s, 520*s+5*s, w-40*s);
+              ctx.fillText(ja[3], x+40*s+0*s, 700*s+5*s, w-40*s);
 
-              ctx.font = "40px \""+font+"\"";
-              ctx.font = "40px \"Cambria\"";
-              ctx.font = "40px \"Calibri\"";
-              // ctx.font = "40px \""+jpFont+"\"";
-              ctx.font = "30px \""+font+"\"";
-              // ctx.textAlign = "right";
-              ctx.font = "30px \"kaiti\"";
-              ctx.font = "30px \"HGP明朝E\"";
-              ctx.font = "30px \"Source Han Sans KR\"";
-
-              ctx.fillText(ruby[0], x+40*s, 15*s+15*s*isRuby-5*s+5*s, w-40*s);
-              ctx.fillText(ruby[1], x+40*s+0*s, 195*s+15*s*isRuby-5*s+5*s, w-40*s);
-              ctx.fillText(ruby[2], x+40*s, 375*s+15*s*isRuby-5*s+5*s, w-40*s);
-              ctx.fillText(ruby[3], x+40*s+0*s, 555*s+15*s*isRuby-5*s+5*s, w-40*s);
+              // ctx.font = "40px \""+font+"\"";
+              // ctx.font = "40px \"Cambria\"";
+              // ctx.font = "40px \"Calibri\"";
+              // // ctx.font = "40px \""+jpFont+"\"";
+              // ctx.font = "30px \""+font+"\"";
+              // // ctx.textAlign = "right";
+              // ctx.font = "30px \"kaiti\"";
+              // ctx.font = "30px \"HGP明朝E\"";
+              // ctx.font = "30px \"Source Han Sans KR\"";
+              //
+              // ctx.fillText(ruby[0], x+40*s, 15*s-5*s+5*s, w-40*s);
+              // ctx.fillText(ruby[1], x+40*s+0*s, 195*s-5*s+5*s, w-40*s);
+              // ctx.fillText(ruby[2], x+40*s, 375*s-5*s+5*s, w-40*s);
+              // ctx.fillText(ruby[3], x+40*s+0*s, 555*s-5*s+5*s, w-40*s);
             }else{
               // ctx.fillStyle = color=="black"?"white":"black";
               // ctx.globalAlpha = 0.1;
