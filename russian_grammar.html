@@ -1,0 +1,66 @@
+
+<style media="screen">
+  *{
+    font-size: 30px;
+    font-family: Cambria, "Source Han Serif K";
+  }
+  input{
+    width:300px;
+  }
+</style>
+<script>
+let change = () => {
+  let verb = document.getElementById("inf").value;
+  let type = [document.getElementById("type").value, ""];
+
+  let stem = verb;
+  if(type[0] == "1"){
+    stem = stem.replace(/овать$/, "у").replace(/евать$/, "ю").replace(/авать$/, "а").replace(/ять$/, "")
+    if(stem.match(/нуть$/)){
+      type[1] = "1-нуть";
+      stem = stem.replace(/нуть$/, "н");
+    }
+    stem = stem.replace(/ть$/, "");
+  }else{
+    stem = stem.replace(/.ть$/, "");
+  }
+
+  let stem1sg = stem;
+  if(type[0] == "2"){
+    stem1sg = stem1sg.replace(/([бвмпф]$)/, "$1л").replace(/([дз]$)/, "ж").replace(/(с$)/, "ш").replace(/(т$)/, "ч").replace(/(ст$)/, "щ");
+  }
+
+  let table = {
+    "1sg": stem1sg + (type[1] == "1-нуть" ? "у" : "ю"),
+    "2sg": stem + (type[0] == "1" ? "е" : "и") + "шь",
+    "3sg": stem + (type[0] == "1" ? "е" : "и") + "т",
+    "1pl": stem + (type[0] == "1" ? "е" : "и") + "м",
+    "2pl": stem + (type[0] == "1" ? "е" : "и") + "те",
+    "3pl": stem + (type[0] == "1" ? (type[1] == "1-нуть" ? "у" : "ю") : "я") + "т",
+    "msgpa" : stem + "л",
+    "fsgpa" : stem + "ла",
+    "nsgpa" : stem + "ло",
+    "plpa" : stem + "ли"
+  }
+  for (let id in table){
+    table[id] = table[id].replace(/(?<=[гкхжчшщ])ы/g, "и").replace(/(?<=[гкхжчшщ])я/g, "а").replace(/(?<=[гкхжчшщ])ю/g, "у");
+    document.getElementById(id).value = table[id];
+  }
+}
+window.onload = change;
+</script>
+不定形: <input type="text" id="inf" oninput="change();" value="читать">
+第<select id="type" oninput="change();">
+<option value="1">Ⅰ</option>
+<option value="2">Ⅱ</option>
+</select>式変化<br>
+1人称単数現在時制: <input type="text" id="1sg" readonly><br>
+2人称単数現在時制: <input type="text" id="2sg" readonly><br>
+3人称単数現在時制: <input type="text" id="3sg" readonly><br>
+1人称複数現在時制: <input type="text" id="1pl" readonly><br>
+2人称複数現在時制: <input type="text" id="2pl" readonly><br>
+3人称複数現在時制: <input type="text" id="3pl" readonly><br>
+男性単数過去時制: <input type="text" id="msgpa" readonly><br>
+女性単数過去時制: <input type="text" id="fsgpa" readonly><br>
+中性単数過去時制: <input type="text" id="nsgpa" readonly><br>
+複数過去時制: <input type="text" id="plpa" readonly><br>
