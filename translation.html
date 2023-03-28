@@ -1,147 +1,85 @@
-<head><title>多言語翻訳</title></head>
-<body><script>
+<input type="text" id="input" placeholder="準備中" readonly/><input type="button" value="翻訳" onclick="change()"><br>
+<canvas id="canvas" width="1200" height="1200"></canvas><br>
+<script>
+
+const LOADIMG = ["https://upload.wikimedia.org/wikipedia/commons/1/10/Topographic90deg_N0W90.png",
+"https://upload.wikimedia.org/wikipedia/commons/4/44/Topographic90deg_N0W0.png",
+"https://upload.wikimedia.org/wikipedia/commons/9/99/Topographic90deg_N0E0.png",
+"https://upload.wikimedia.org/wikipedia/commons/b/ba/Topographic90deg_N0E90.png",
+"https://upload.wikimedia.org/wikipedia/commons/6/67/Topographic90deg_S0W90.png",
+"https://upload.wikimedia.org/wikipedia/commons/7/75/Topographic90deg_S0W0.png",
+"https://upload.wikimedia.org/wikipedia/commons/8/89/Topographic90deg_S0E0.png",
+"https://upload.wikimedia.org/wikipedia/commons/2/2a/Topographic90deg_S0E90.png"];
+const LANG = {
+  ja: ["日本語", 137, -35],
+  ko: ["韓国語", 127, -38],
+  "zh-CN": ["中国語(簡体)", 108, -35],
+  "zh-TW": ["中国語(繁体)", 121, -24],
+  mn: ["モンゴル語", 105, -47],
+  vi: ["ベトナム語", 108, -18],
+  lo: ["ラオ語", 102, -21],
+  th: ["タイ語", 99, -16],
+  km: ["クメール語", 105, -12],
+  my: ["ミャンマー語", 97, -22],
+  hmn: ["モン語", 97, -13],
+  ceb: ["セブアノ語", 125, -7],
+  tl: ["タガログ語", 122, -14],
+  ms: ["マレー語", 108, -5],
+  tl: ["インドネシア語", 102, 2],
+  jv: ["ジャワ語", 110, 7]
+};
+let loaded = 0;
+const ctx = document.getElementById("canvas").getContext('2d');
+let imgs = Array(8);
+for(let i in LOADIMG){
+  imgs[i] = new Image();
+  imgs[i].src = LOADIMG[i];
+  imgs[i].onload = () => {
+    loaded++;
+    if(loaded == 8){
+      document.getElementById("input").placeholder="入力できます";
+      document.getElementById("input").readOnly=false;
+      draw();
+    }
+  };
+}
+
+
 function change(){
+  draw();
   function translate(target){
     let input = document.getElementById("input").value;
-    fetch(`https://script.google.com/macros/s/AKfycbzNRZ7XmiVM4kKZdfV2IAp7I-ENutCfyrhMlgNr/exec?text=${input}&source=ja&target=${target}`)
-      .then(response => response.text())
-      .then(text => {
-        document.getElementById(target).innerText = text;
-      });
+    if(target != "ja"){
+      fetch(`https://script.google.com/macros/s/AKfycbzNRZ7XmiVM4kKZdfV2IAp7I-ENutCfyrhMlgNr/exec?text=${input}&source=ja&target=${target}`)
+        .then(response => response.text())
+        .then(text => {
+          // ctx.fillText(LANG[target][0], 200+LANG[target][1]*20/3, 600+LANG[target][2]*20/3);
+          ctx.fillText(text, 200+LANG[target][1]*20/3, 600+LANG[target][2]*20/3+10);
+        });
+    }else{
+        text = input;
+        // ctx.fillText(LANG[target][0], 200+LANG[target][1]*20/3, 600+LANG[target][2]*20/3);
+        ctx.fillText(text, 200+LANG[target][1]*20/3, 600+LANG[target][2]*20/3+10);
+    }
   }
-  for(let output of document.getElementsByTagName("span")){
-    translate(output.id);
+
+  for(let output in LANG){
+    ctx.fillStyle = "black";
+    ctx.font = "bold 15px serif";
+    ctx.textAlign = "center";
+    translate(output);
   }
 }
-</script>
-多言語翻訳
-<input type="text" id="input"/><input type="button" value="翻訳" onclick="change()"><br>
 
-韓国語: <span id="ko"></span><br>
-モンゴル語: <span id="mn"></span><br>
-モン語: <span id="hmn"></span><br>
-ジョージア語: <span id="ka"></span><br>
-ハイチ語: <span id="ht"></span><br>
-バスク語: <span id="eu"></span><br>
-<br><b style="background-color:#FF2000; color:white">シナ・チベット語族</b><br>
-中国語(簡体): <span id="zh-CN"></span><br>
-中国語(繁体): <span id="zh-TW"></span><br>
-ミャンマー語: <span id="my"></span><br>
-<br><b style="background-color:#CCCCFF; color:black">タイ・カダイ語族</b><br>
-タイ語: <span id="th"></span><br>
-ラオ語: <span id="lo"></span><br>
-<br><b style="background-color:#FB607F; color:black">オーストロアジア語族</b><br>
-ベトナム語: <span id="vi"></span><br>
-クメール語: <span id="km"></span><br>
-<br><b style="background-color:#FFC0CB; color:black">オーストロネシア語族</b><br>
-セブアノ語: <span id="ceb"></span><br>
-タガログ語: <span id="tl"></span><br>
-クメール語: <span id="km"></span><br>
-マレー語: <span id="ms"></span><br>
-インドネシア語: <span id="id"></span><br>
-ジャワ語: <span id="jv"></span><br>
-スンダ語: <span id="su"></span><br>
-サモア語: <span id="sm"></span><br>
-マオリ語: <span id="mi"></span><br>
-ハワイ語: <span id="haw"></span><br>
-マラガシ語: <span id="mg"></span><br>
-<br><b style="background-color:#ADFF2F; color:black">テュルク語族</b><br>
-トルコ語: <span id="tr"></span><br>
-アゼルバイジャン語: <span id="az"></span><br>
-トルクメン語: <span id="tk"></span><br>
-ウズベク語: <span id="uz"></span><br>
-ウイグル語: <span id="ug"></span><br>
-カザフ語: <span id="kk"></span><br>
-キルギス語: <span id="ky"></span><br>
-タタール語: <span id="tt"></span><br>
-<br><b style="background-color:#FFFF00; color:black">アフロ・アジア語族</b><br>
-アラビア語: <span id="ar"></span><br>
-アムハラ語: <span id="am"></span><br>
-ソマリ語: <span id="so"></span><br>
-ハウサ語: <span id="ha"></span><br>
-ヘブライ語: <span id="he"></span><br>
-マルタ語: <span id="mt"></span><br>
-<br><b style="background-color:#32CD32; color:black">ウラル語族</b><br>
-フィンランド語: <span id="fi"></span><br>
-エストニア語: <span id="et"></span><br>
-ハンガリー語: <span id="hu"></span><br>
-<br><b style="background-color:#00FA9A; color:black">ドラヴィダ語族</b><br>
-カンナダ語: <span id="kn"></span><br>
-タミル語: <span id="ta"></span><br>
-マラヤーラム語: <span id="ml"></span><br>
-テルグ語: <span id="te"></span><br>
-<br><b style="background-color:#66FF00; color:black">インド語群</b><br>
-ヒンディー語: <span id="hi"></span><br>
-ウルドゥー語: <span id="ur"></span><br>
-クジャラト語: <span id="gu"></span><br>
-パンジャブ語: <span id="pa"></span><br>
-オリヤー語: <span id="or"></span><br>
-ベンガル語: <span id="bn"></span><br>
-ネパール語: <span id="ne"></span><br>
-シンド語: <span id="sd"></span><br>
-マラーティー語: <span id="mr"></span><br>
-シンハラ語: <span id="si"></span><br>
-<br><b style="background-color:#66FF00; color:black">イラン語群</b><br>
-パシュト語: <span id="ps"></span><br>
-ペルシャ語: <span id="fa"></span><br>
-クルド語: <span id="ku"></span><br>
-タジク語: <span id="tg"></span><br>
-<br><b style="background-color:#66FF00; color:black">スラブ語派</b><br>
-ロシア語: <span id="ru"></span><br>
-ベラルーシ語: <span id="be"></span><br>
-ウクライナ語: <span id="uk"></span><br>
-ポーランド語: <span id="pl"></span><br>
-チェコ語: <span id="cs"></span><br>
-スロバキア語: <span id="sk"></span><br>
-ブルガリア語: <span id="bg"></span><br>
-マケドニア語: <span id="mk"></span><br>
-クロアチア語: <span id="hr"></span><br>
-セルビア語: <span id="sr"></span><br>
-ボスニア語: <span id="bs"></span><br>
-スロベニア語: <span id="sl"></span><br>
-<br><b style="background-color:#66FF00; color:black">バルト語派</b><br>
-ラトビア語: <span id="lv"></span><br>
-リトアニア語: <span id="lt"></span><br>
-<br><b style="background-color:#66FF00; color:black">ロマンス語派</b><br>
-ラテン語: <span id="la"></span><br>
-ルーマニア語: <span id="ro"></span><br>
-イタリア語: <span id="it"></span><br>
-コルシカ語: <span id="co"></span><br>
-フランス語: <span id="fr"></span><br>
-カタルーニャ語: <span id="ca"></span><br>
-スペイン語: <span id="es"></span><br>
-ガリシア語: <span id="gl"></span><br>
-ポルトガル語: <span id="pt"></span><br>
-<br><b style="background-color:#66FF00; color:black">ゲルマン語派</b><br>
-英語: <span id="en"></span><br>
-フリジア語: <span id="fy"></span><br>
-オランダ語: <span id="nl"></span><br>
-アフリカーンス語: <span id="af"></span><br>
-ドイツ語: <span id="de"></span><br>
-ルクセンブルク語: <span id="lb"></span><br>
-イディッシュ語: <span id="yi"></span><br>
-アイスランド語: <span id="is"></span><br>
-スウェーデン語: <span id="sv"></span><br>
-デンマーク語: <span id="da"></span><br>
-ノルウェー語: <span id="no"></span><br>
-<br><b style="background-color:#66FF00; color:black">ケルト語派</b><br>
-アイルランド語: <span id="ga"></span><br>
-ウェールズ語: <span id="cy"></span><br>
-スコットランド・ゲール語: <span id="gd"></span><br>
-<br><b style="background-color:#66FF00; color:black">その他の印欧語</b><br>
-アルバニア語: <span id="sq"></span><br>
-ギリシャ語: <span id="el"></span><br>
-アルメニア語: <span id="hy"></span><br>
-<br><b style="background-color:#FFA500; color:black">ニジェール・コンゴ語族</b><br>
-イボ語: <span id="ig"></span><br>
-ヨルバ語: <span id="yo"></span><br>
-キニャルワンダ語: <span id="rw"></span><br>
-スワヒリ語: <span id="sw"></span><br>
-ショナ語: <span id="sn"></span><br>
-チェワ語: <span id="ny"></span><br>
-ソト語: <span id="st"></span><br>
-コサ語: <span id="xh"></span><br>
-ズールー語: <span id="zu"></span><br>
-<br><b style="background-color:#000000; color:white">人工言語</b><br>
-エスペラント語: <span id="eo"></span><br>
-</body>
+function draw(){
+  ctx.clearRect(0, 0, 1200, 1200);
+  ctx.drawImage(imgs[0], 0, 0, 1800, 1800, -1000, 0, 600, 600);
+  ctx.drawImage(imgs[1], 0, 0, 1800, 1800, -400, 0, 600, 600);
+  ctx.drawImage(imgs[2], 0, 0, 1800, 1800, 200, 0, 600, 600);
+  ctx.drawImage(imgs[3], 0, 0, 1800, 1800, 800, 0, 600, 600);
+  ctx.drawImage(imgs[4], 0, 0, 1800, 1800, -1000, 600, 600, 600);
+  ctx.drawImage(imgs[5], 0, 0, 1800, 1800, -400, 600, 600, 600);
+  ctx.drawImage(imgs[6], 0, 0, 1800, 1800, 200, 600, 600, 600);
+  ctx.drawImage(imgs[7], 0, 0, 1800, 1800, 800, 600, 600, 600);
+}
+</script>

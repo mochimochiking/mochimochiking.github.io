@@ -1,0 +1,27 @@
+<canvas id="canvas" width="1080" height="1080"></canvas>
+<script>
+let ctx = document.getElementById("canvas").getContext("2d");
+
+ctx.fillStyle = "#EEE";
+ctx.fillRect(0, 0, 1080, 1080);
+
+// ctx.shadowBlur = 45;
+// ctx.shadowColor = "black"
+
+ctx.fillStyle = "#F60";
+ctx.beginPath();
+ctx.arc(540, 270, 270, 0, 2*Math.PI, true);
+ctx.closePath();
+ctx.fill();
+ctx.beginPath();
+
+ctx.moveTo(0, 1080);
+ctx.fillStyle = "#075";
+ctx.lineTo(1080, 1080);
+ctx.lineTo(810, 1080-270*Math.sqrt(3));
+ctx.lineTo(540, 1080);
+ctx.lineTo(270, 1080-270*Math.sqrt(3));
+ctx.lineTo(0, 1080);
+ctx.closePath();
+ctx.fill();
+</script>
