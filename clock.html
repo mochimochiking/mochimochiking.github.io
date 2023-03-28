@@ -1,0 +1,76 @@
+<canvas id="canvas1"  width="1290" height="360"></canvas>
+<script>
+function update(){
+  const NOW = new Date()
+
+  let ctx = document.getElementById("canvas1").getContext("2d");
+  ctx.clearRect(0, 0, 1290, 360);
+  ctx.fillStyle = "#eee";
+  ctx.fillRect(0, 0, 1290, 720);
+  
+  let hour = NOW.getHours();
+  let min = NOW.getMinutes();
+  let sec = NOW.getSeconds();
+  let msec = NOW.getMilliseconds();
+  let sec_sum = hour*3600 + min*60 + sec + msec/1000;
+
+  let getColor = remainder=>{
+    const COLORS = [
+      [255, 255, 255], //桃色
+      [230, 0, 51], // 赤
+      [234, 85, 6], // 赤橙
+      [238, 181, 0], // 山吹
+      [184, 210, 0], // 黄緑
+      [0, 123, 67], // 常磐色
+      [0, 149, 217], // 青
+      [25, 47, 96], // 群青
+      [101, 49, 142], //  本紫
+      [24, 6, 20] //烏羽色
+    ]
+    // let red = Math.round((Math.cos(Math.PI*remainder)**2)*255);
+    // let green = Math.round((Math.cos(Math.PI*(remainder-0.45))**8)*255);
+    // let blue = Math.round((Math.cos(Math.PI*(remainder-0.9))**2)*255);
+    let i = Math.floor(remainder*10);
+    let j = (i+1)%10
+    let k = remainder*10-i;
+    let red = (1-k)*COLORS[i][0] + k*COLORS[j][0];
+    let green = (1-k)*COLORS[i][1] + k*COLORS[j][1];
+    let blue = (1-k)*COLORS[i][2] + k*COLORS[j][2];
+    return `rgb(${red}, ${green}, ${blue})`;
+  };
+
+  ctx.textAlign = "center";
+
+  ctx.fillStyle = getColor((sec_sum/36000)%1);
+  draw(Math.floor(hour/10), (sec_sum/36000)%1, 130, 36000, 6);
+  // ctx.fillStyle = getColor((sec_sum/3600)%1);
+  draw(hour%10, (sec_sum/3600)%1, 300, 3600, 10);
+  draw(":", 0, 430, 3600);
+  ctx.fillStyle = getColor((sec_sum/600)%1);
+  draw(Math.floor(min/10), (sec_sum/600)%1, 560, 600,6);
+  // ctx.fillStyle = getColor((sec_sum/60)%1);
+  draw(min%10, (sec_sum/60)%1, 730, 60, 10);
+  draw(":", 0, 860, 3600);
+  ctx.fillStyle = getColor((sec_sum/10)%1);
+  draw(Math.floor(sec/10), (sec_sum/10)%1, 990, 10, 6);
+  // ctx.fillStyle = getColor(sec_sum%1);
+  draw(sec%10, sec_sum%1, 1160, 1, 10);
+
+  function draw(number, remainder, x, depth, max){
+    // remainder = (
+    //   alpha => {
+    //     if(alpha <= 1-depth)return 0;
+    //     return (Math.cos(Math.PI/2*(1-alpha)))**(2*depth*depth);
+    //   })(remainder);
+    remainder = (
+      () => remainder ** (depth *1.5)
+    )(remainder)
+    ctx.font = `360px "Calibri"`;
+    ctx.shadowColor = "black";//影
+    ctx.shadowBlur = "10";
+    ctx.fillText(number, x, 310+360*remainder);
+    ctx.fillText(number+1>=max?0:number+1, x, 310-360*(1-remainder));
+  }
+}
+setInterval(update, 0);
+</script>
