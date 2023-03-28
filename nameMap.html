@@ -1010,29 +1010,30 @@ const names = [
 ["柳瀬","18100"],
 ["倉橋","18100"]
 ].slice(0,1000);
-
 let nodeAry = [];
 let edgeAry = [];
-for(let log of names){
-  for(let index in log[0]){
-    index = Number(index);
-    let kanji = log[0][index];
-    if(!nodeAry.some(x=>x.label == kanji)){
-      nodeAry.push({id: kanji, label: kanji, shape: "circle", font: {size: 50, color:"white"}, color: makeRandomColor(), title:""});
-    }
-    if(index != 0){
-      let backKanji = log[0][index-1];
-      if(!edgeAry.some(x=>x.from == backKanji && x.to == kanji)){
-        edgeAry.push({from: backKanji, to: kanji, arrows: "to", color: {inherit: "from"}, width:0});
-      }
-      nodeAry.find(x=>x.id==backKanji).title += log[0]+" "
-      nodeAry.find(x=>x.id==backKanji).font.size++;
-      nodeAry.find(x=>x.id==kanji).title += log[0]+" "
-      nodeAry.find(x=>x.id==kanji).font.size++;
-      edgeAry.find(x=>x.from == backKanji && x.to == kanji).width += log[1]/50000;
-    }
-  }
-}
+
+
+// for(let log of names){
+//   for(let index in log[0]){
+//     index = Number(index);
+//     let kanji = log[0][index];
+//     if(!nodeAry.some(x=>x.label == kanji)){
+//       nodeAry.push({id: kanji, label: kanji, shape: "circle", font: {size: 50, color:"white"}, color: makeRandomColor(), title:""});
+//     }
+//     if(index != 0){
+//       let backKanji = log[0][index-1];
+//       if(!edgeAry.some(x=>x.from == backKanji && x.to == kanji)){
+//         edgeAry.push({from: backKanji, to: kanji, arrows: "to", color: {inherit: "from"}, width:0});
+//       }
+//       nodeAry.find(x=>x.id==backKanji).title += log[0]+" "
+//       nodeAry.find(x=>x.id==backKanji).font.size++;
+//       nodeAry.find(x=>x.id==kanji).title += log[0]+" "
+//       nodeAry.find(x=>x.id==kanji).font.size++;
+//       edgeAry.find(x=>x.from == backKanji && x.to == kanji).width += log[1]/50000;
+//     }
+//   }
+// }
 
 let nodes = new vis.DataSet(nodeAry);
 let edges =  new vis.DataSet(edgeAry);
@@ -1052,15 +1053,19 @@ let opt = {
   physics: {
     stabilization: false,
     barnesHut: {
-      gravitationalConstant: -8000,
+      gravitationalConstant: -2000,
       springConstant: 0.001,
-      springLength: 1,
+      springLength: 0,
+      centralGravity: 0
     },
   },
   interaction: {
     tooltipDelay: 200,
     hideEdgesOnDrag: true,
   },
+  autoResize: true,
+  width: "100%",
+  height: "100%", 
 };
 
 function makeRandomColor(type){
@@ -1074,6 +1079,33 @@ function makeRandomColor(type){
     return (('00' + v.toString(16)).substr(-2));
   }
 }
+
+let add = num => {
+  if(num>=names.length)return;
+  let log = names[num];
+  for(let index in log[0]){
+    index = Number(index);
+    let kanji = log[0][index];
+    if(!nodeAry.some(x=>x.label == kanji)){
+      nodeAry.push({id: kanji, label: kanji, shape: "circle", font: {size: 50, color:"white"}, color: makeRandomColor(), title:""});
+      nodes.update({id: kanji, label: kanji, shape: "circle", font: {size: 50, color:"white"}, color: makeRandomColor(), title:""});
+    }
+    if(index != 0){
+      let backKanji = log[0][index-1];
+      if(!edgeAry.some(x=>x.from == backKanji && x.to == kanji)){
+        edgeAry.push({from: backKanji, to: kanji, arrows: "to", color: {inherit: "from"}, width:0});
+        edges.update({from: backKanji, to: kanji, arrows: "to", color: {inherit: "from"}, width:0});
+      }
+      nodeAry.find(x=>x.id==backKanji).title += log[0]+" "
+      nodeAry.find(x=>x.id==backKanji).font.size++;
+      nodeAry.find(x=>x.id==kanji).title += log[0]+" "
+      nodeAry.find(x=>x.id==kanji).font.size++;
+      edgeAry.find(x=>x.from == backKanji && x.to == kanji).width += log[1]/50000;
+    }
+  }
+  setInterval(()=>{add(num+1)}, 0);
+}
+add(0);
 
 let container = document.getElementById("network");
 let network = new vis.Network(container, {nodes, edges}, opt);
