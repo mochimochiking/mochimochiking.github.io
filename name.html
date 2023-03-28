@@ -128,7 +128,7 @@
       let menColors = [];
       for(let i of menNames){
         for(let j of i[1]){
-          if(!menColors.includes(j)){
+          if(!menColors.find(x=>x[0]==j)){
             menColors.push([j, makeRandomColor("man")]);
           }
         }
@@ -247,7 +247,7 @@
       let womenColors = [];
       for(let i of womenNames){
         for(let j of i[1]){
-          if(!womenColors.includes(j)){
+          if(!womenColors.find(x=>x[0]==j)){
             womenColors.push([j, makeRandomColor("woman")]);
           }
         }

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <style>
+      body{
+        margin:0;
+      }
+    </style>
+  </head>
+  <body bgcolor="black">
+    <canvas id="canvas1" width="1280" height="720"></canvas><br>
+    <input id="slider" type="range" min="0" max="1" step="0.02" style="width:1280px;" oninput="draw(document.getElementById('slider').value);"><br>
+    <input type="text" id="input" oninput="makeText()">
+    <script>
+    var makeText=()=>{document.getElementById("input").value=', ["'+document.getElementById("input").value.replace(/[\n\s-]+/g, '","')+'"]';};
+      let menNames = [
+        ["北海道", ["佐藤", "高橋", "佐々木", "鈴木", "伊藤", "田中", "吉田", "渡辺", "中村", "小林"]],
+        ["青森県", ["工藤", "佐藤", "佐々木", "木村", "成田", "中村", "田中", "斎藤", "三上", "高橋"]]
+      ];
+      let menColors = [];
+      for(let i of menNames){
+        for(let j of i[1]){
+          if(!menColors.find(x=>x[0]==j)){
+            menColors.push([j, makeRandomColor("man")]);
+          }
+        }
+      }
+
+      draw(document.getElementById('slider').value);
+      // let now = Date.now();
+      // let move = setInterval(()=>{
+      //   draw(1912+(Date.now()-now)/3000%107);
+      // }, 0);
+
+      function makeRandomColor(type){
+        let red, blue, green;
+        // do{
+          red = Math.floor(Math.random()*128)+32;
+          green = Math.floor(Math.random()*128)+32;
+          blue = Math.floor(Math.random()*128)+32;
+        // }while((type=="man"&&(red>green||red>blue))||(type=="woman"&&(blue>red||green>red)));
+        return "#"+toHex(red)+toHex(green)+toHex(blue);
+      }
+
+      function toHex(v) {
+        return (('00' + v.toString(16)).substr(-2));
+      }
+
+      function kaidan(val){
+        return 35*val**4-84*val**5+70*val**6-20*val**7;
+        return 10*val**3-15*val**4+6*val**5;
+        return 3*val**2-2*val**3;
+        return (1-Math.cos(Math.PI*(1-Math.cos(Math.PI*val))/2))/2;
+        return (1-Math.cos(Math.PI*val))/2;
+      }
+
+
+      function draw(year){
+        let drawMenName = [];
+        for(let i in menNames){
+          if(i[0]==Math.floor(year)||i[0]==Math.ceil(year))
+          for(let j of menNames[i][1]){
+            if(!drawMenName.includes(j)){
+              drawMenName.push(j);
+            }
+          }
+        }
+
+        let ctx = document.getElementById("canvas1").getContext('2d');
+        ctx.clearRect(0, 0, 1280, 720);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle =　"whitesmoke";
+        ctx.fillRect(0, 0, 1280, 720);
+
+        ctx.font = "bold 50px \"UD デジタル 教科書体 NK-B\"";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText("都道府県別 名字ランキング", 360, 60);
+        ctx.fillText(menNames[Math.round(year)][0], 810, 60);
+
+
+        ctx.font = "30px \"UD デジタル 教科書体 NK-R\"";
+        // ctx.font = "30px \"HGP行書体\"";
+        ctx.textAlign = "right";
+        for(let i=drawMenName.length-1; i>=0; i--){
+          let drawMenNameLank =
+            ((menNames[Math.floor(year)][1].findIndex(x=>x==drawMenName[i])+12)%12)*(1-kaidan(year%1))
+            +((menNames[Math.ceil(year)][1].findIndex(x=>x==drawMenName[i])+12)%12)*kaidan(year%1);
+          ctx.fillStyle =　menColors.find(x=>x[0]==drawMenName[i])[1];
+          ctx.shadowBlur = 5;
+          ctx.fillRect(60, 100+60*drawMenNameLank, 520+52*(10-drawMenNameLank), 40);
+
+          ctx.fillStyle = "white";
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = "black";
+          ctx.fillText(drawMenName[i], 570+52*(10-drawMenNameLank), 130+60*drawMenNameLank);
+        }
+      }
+    </script>
+  </body>
+</html>
