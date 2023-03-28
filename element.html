@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!-- saved from url=(0048)https://mochimochiking.github.io/youtubeImg.html -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <title></title>
+    <style>
+      *{
+        font-size: 20px;
+        margin: 0px;
+        padding: 0px;
+      }
+      td{
+        vertical-align: top;
+      }
+    </style>
+    <script src="element_data.js"></script>
+  </head>
+  <body bgcolor="#eee">
+    <table><tbody><tr><td><canvas id="canvas1" width="1280" height="720"></canvas></td>
+    <td><form name="form1">
+      太さ:<input type="range" name="isBold" min="100" max="900" step="100" selected="0"><br>
+      イタリック:<select name="italic">
+        <option value="italic">yes</option>
+        <option value="" selected>no</option>
+      </select><br>
+      alpha:<select name="alpha">
+        <option value="0">0</option>
+        <option value="0.25">0.25</option>
+        <option value="0.5">0.5</option>
+      </select><br>
+      <!-- <button type="button" onclick="update()">更新</button> -->
+    </form></td></tr></tbody></table>
+    <script>
+    function update(){
+      let s = 1
+
+      let isBold = document.form1.isBold.value;
+      let italic = document.form1.italic.value;
+      let color = "white";
+      let alpha = document.form1.alpha.value;
+
+      let ctx = document.getElementById("canvas1").getContext('2d');
+
+      let myElement = ELEMENT.filter(x=>x.symbol == SONG[NUMBER])[0]
+
+      ctx.clearRect(0, 0, 1280*s, 720*s);
+      ctx.fillStyle = "#"+ myElement.color;
+      ctx.fillRect(0, 0, 1280*s, 720*s);//120*16, 120*9
+
+      let x,w;
+      x=0*s;
+      w=1280*s;
+      ctx.shadowBlur = 0;
+
+      //しょうみここだけ重要
+      ctx.fillStyle = color=="black"?"white":"black";
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(0*s, 0, 1280*s, 720*s);
+
+
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 10;
+
+      ctx.shadowColor = color=="black"?"white":"black";//影
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = color;
+      ctx.font = italic+" "+isBold+" 100px \"Arial Rounded MT\"";
+      ctx.fillText(myElement.number, x+100*s, 100*s, w-80*s);
+      ctx.fillText(myElement.symbol, x+400*s, 100*s, w-80*s);
+
+      ctx.textAlign = "center";
+      
+      ctx.font = italic+" "+isBold+" 70px \"UD デジタル 教科書体 NK-R\"";
+      ctx.fillText(myElement.ja, x+380*s, 210*s, 400*s);
+
+      ctx.font = italic+" "+isBold+" 70px \"UD デジタル 教科書体 NK-R\"";
+      ctx.fillText(myElement.category, x+960*s, 90*s, 500*s);
+
+      ctx.font = italic + "bold 160px \"simsun\"";
+      ctx.fillText(myElement.zhTW, x+240*s, 420*s, 160*s);
+      ctx.fillText(myElement.zhCN, x+540*s, 420*s, 160*s);
+      
+      ctx.font = italic+" "+isBold+" 70px \"OSeong and HanEum\"";
+      ctx.fillText(myElement.ko, x+380*s, 570*s, 400*s);
+      
+      ctx.font = italic+" "+isBold+" 70px \"Arial Rounded MT\"";
+
+      ctx.fillText(myElement.en, x+1020*s, 210*s, 400*s);
+      ctx.fillText(myElement.fr, x+1020*s, 330*s, 400*s);
+      ctx.fillText(myElement.de, x+1020*s, 450*s, 400*s);
+      ctx.fillText(myElement.la, x+1020*s, 570*s, 400*s);
+
+      ctx.font = italic+" "+isBold+" 70px \"calibri\"";
+      ctx.fillText(myElement.el, x+380*s, 690*s, 400*s);
+      ctx.fillText(myElement.ru, x+1020*s, 690*s, 400*s);
+
+      ctx.textAlign = "left";
+      ctx.font = italic+" "+isBold+" 70px \"UD デジタル 教科書体 NK-R\"";
+      ctx.fillText("日：", x+40*s, 210*s, w);
+      ctx.fillText("繁：", x+40*s, 390*s, w);
+      ctx.fillText("簡：", x+340*s, 390*s, w);
+      ctx.fillText("韓：", x+40*s, 570*s, w);
+      ctx.fillText("希：", x+40*s, 690*s, w);
+
+      ctx.fillText("英：", x+680*s, 210*s, w);
+      ctx.fillText("仏：", x+680*s, 330*s, w);
+      ctx.fillText("独：", x+680*s, 450*s, w);
+      ctx.fillText("羅：", x+680*s, 570*s, w);
+      ctx.fillText("露：", x+680*s, 690*s, w);
+
+
+      ctx.globalAlpha = 1;
+    }
+
+
+    for(let i of document.form1.getElementsByTagName("*")){
+      if(i.tagName!="BR"){
+        i.addEventListener("input", ()=>{update();});
+      }
+    }
+    window.onload = ()=>{update();};
+
+    window.onkeydown = e => {
+      if(e.code == "ArrowRight"){ // 右
+        if(NUMBER<117)NUMBER++;
+        console.log(NUMBER);
+        update();
+      }else if(e.code == "ArrowLeft"){ // 左
+        if(NUMBER>0)NUMBER--;
+        console.log(NUMBER);
+        update();
+      }
+    }
+    let NUMBER = 0;
+    </script>
