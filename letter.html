@@ -1,0 +1,183 @@
+<input type="range" id="time" oninput="draw()" min="0" max="1" step="0.01">
+<canvas id="canvas1" width="1280" height="720"></canvas>
+<script>
+const canvas = document.getElementById("canvas1");
+const ctx = canvas.getContext("2d");
+const DEEP = 1000;
+
+// const LETTERS = [
+// `ABΓΔEϜΓH
+// IIKΛMNOΠ
+// ϘPΣTYYYX
+// YZギリシャ文字`,
+// `ABCDEFGH
+// IJKLMNOP
+// QRSTUVWX
+// YZ・ラテン文字`
+// ].map(x=>x.split("\n"));
+
+// const LETTERS = [
+// `abcdefgh
+// ijklmnop
+// qrstuvwx
+// yz・・・小文字`,
+// `ABCDEFGH
+// IJKLMNOP
+// QRSTUVWX
+// YZ・・・大文字`
+// ].map(x=>x.split("\n"));
+
+// const LETTERS = [
+// `あいうえおかきく
+// けこさしすせそた
+// ちつてとなにぬね
+// のはひふへほまみ`,
+// `アイウエオカキク
+// ケコサシスセソタ
+// チツテトナニヌネ
+// ノハヒフヘホマミ`
+// ].map(x=>x.split("\n"));
+
+const LETTERS = [
+`𐤀𐤁𐤂𐤃𐤄𐤅𐤆𐤇
+𐤈𐤉𐤊𐤋𐤌𐤍𐤎𐤏
+𐤐𐤑𐤒𐤓𐤔𐤕𐤅・
+・・・・・・・・`,
+`ABΓΔEϜΓH
+ΘIKΛMNΞO
+ΠϺϘPΣTYΦ
+ΧΨΩ・・・・・`
+].map(x=>x.split("\n"));
+
+let pointsMap = new Map();
+for(let i=0; i<LETTERS.length; i++){
+  for(let j=0; j<LETTERS[i].length; j++){
+    for(let k=0; k<LETTERS[i][j].length; k++){
+      let letter = LETTERS[i][j][k];
+      if(letter == "\n"){
+        continue;
+      }
+      if(!pointsMap.has(letter)){
+        pointsMap.set(letter, makeRandomPoints(letter, "\"'ALPHABETUM Unicode','Noto Sans Phoenician','MPH 2B Damase','MPH 2B ダマセ',Aegean,Code2001,FreeSans,Quivira\"").sort((i, j) => Math.atan2(i[0]-0.5, -(i[1]-0.5))-Math.atan2(j[0]-0.5, -(j[1]-0.5))))
+      }
+    }
+  }
+}
+
+function makeRandomPoints(letter, font){
+  let vCanvas = document.createElement("canvas");
+  vCanvas.width = "400";
+  vCanvas.height = "400";
+  let vCtx = vCanvas.getContext("2d");
+  vCtx.beginPath();
+  let mTxt = ctx.measureText(letter);
+  console.log(mTxt);
+  // let lWidth = mTxt.width;
+  // let lHeight = mTxt.actualBoundingBoxAscent+mTxt.actualBoundingBoxDescent;
+  // vCtx.font = `${3200/Math.max(lWidth, lHeight)}px ${font}`;
+  vCtx.font = `300px ${font}`;
+  vCtx.textAlign = "center";
+  vCtx.fillStyle = "black";
+  // vCtx.fillText(letter, 200, 50+300*(mTxt.actualBoundingBoxAscent/lHeight));
+  // let txt = new Path2D();
+  // console.log(txt);
+  // txt.fillText(letter, 200, 320);
+  // vCtx.fill(txt);
+  vCtx.fillText(letter, 200, 320);
+  document.body.appendChild(vCanvas);
+  let vImageData = vCtx.getImageData(0, 0, 400, 400);
+  // console.log(vImageData);
+  // let getColor = (x, y) => {
+  //   let red = y*(400*4)+x*4;
+  //   return vImageData.data.slice(red, red+4);
+  // }
+  let has = (x, y) => (vImageData.data[y*(400*4)+x*4+3])<128;
+  // let has = (x, y) => vCtx.isPointInStroke(x, y);
+
+  let lists = [];
+  for(let i=0; i<DEEP/3; i++){
+    let rand = [0, 0];
+    do{
+      rand = [Math.floor(Math.random()*400), Math.floor(Math.random()*400)];
+    }while(has(...rand));
+    lists.push([rand[0]/400, rand[1]/400]);
+  }
+
+  // has = (x, y) => vCtx.isPointInPath(x, y);
+  vCtx.clearRect(0, 0, 400, 400);
+  vCtx.strokeStyle = "black";
+  vCtx.lineWidth = 5;
+  vCtx.lineJoin = "round";
+  vCtx.strokeText(letter, 200, 320);
+  vImageData = vCtx.getImageData(0, 0, 400, 400);
+  for(let i=0; i<DEEP*2/3; i++){
+    let rand = [0, 0];
+    do{
+      rand = [Math.floor(Math.random()*400), Math.floor(Math.random()*400)];
+    }while(has(...rand));
+    lists.push([rand[0]/400, rand[1]/400]);
+  }
+
+  return lists;
+}
+
+// let a = makeRandomPoints("あ", "serif");
+// let b = makeRandomPoints("a", "serif");
+// a = a.sort((i, j) => Math.atan2(i[0]-0.5, i[1]-0.5)-Math.atan2(j[0]-0.5, j[1]-0.5));
+// b = b.sort((i, j) => Math.atan2(i[0]-0.5, i[1]-0.5)-Math.atan2(j[0]-0.5, j[1]-0.5));
+
+// for(let i=0; i<DEEP-1; i++){
+//   // let rand = [Math.floor(Math.random()*(DEEP-1)), Math.floor(Math.random()*(DEEP-1))+1];
+//   // rand[1] = rand[0]+1;
+//   let rand = [i, i+1];
+//   if((
+//     Math.sqrt(((a[rand[0]][0]-b[rand[0]][0])**2)+((a[rand[0]][1]-b[rand[0]][1])**2))
+//     +Math.sqrt(((a[rand[1]][0]-b[rand[1]][0])**2)+((a[rand[1]][1]-b[rand[1]][1])**2))
+//   )>(
+//     Math.sqrt(((a[rand[0]][0]-b[rand[1]][0])**2)+((a[rand[0]][1]-b[rand[1]][1])**2))
+//     +Math.sqrt(((a[rand[1]][0]-b[rand[0]][0])**2)+((a[rand[1]][1]-b[rand[0]][1])**2))
+//   )){
+//     [b[rand], b[rand+1]] = [b[rand+1], b[rand]];
+//     console.log(rand);
+//   }
+// }
+
+function draw(){
+  let time = document.getElementById("time").value;
+  ctx.clearRect(0, 0, 1280, 720);
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, 1280, 720);
+  ctx.strokeStyle = "white";
+  for(let i=2; i<16; i+=2){
+    ctx.beginPath();
+    ctx.moveTo(i*80, 0);
+    ctx.lineTo(i*80, 720);
+    ctx.stroke();
+  }
+  for(let i=0; i<9; i+=2){
+    ctx.beginPath();
+    ctx.moveTo(0, i*80);
+    ctx.lineTo(1280, i*80);
+    ctx.stroke();
+  }
+
+  for(let row=0; row<4; row++){
+    for(let col=0; col<8; col++){
+      for(let i = 0; i<DEEP; i++){
+        let a = pointsMap.get(LETTERS[0][row][col]);
+        let b = pointsMap.get(LETTERS[1][row][col]);
+        let diff = (a[i][0]-b[i][0])**2+(a[i][1]-b[i][1])**2;
+        console.log(diff);
+        let size = 1.5;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(
+          160*col + ((a[i][0]*(1-time))+b[i][0]*time)*120,
+          160*row + ((a[i][1]*(1-time))+b[i][1]*time)*120,
+          size, size);	
+      }
+    }
+  }
+
+}
+draw();
+</script>
