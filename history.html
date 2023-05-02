@@ -11,7 +11,7 @@ body{
 <input type="range" id="input" oninput="main()"><br>
 <canvas id="canvas1" width="1280" height="720"></canvas>
 <script>
-let DATA;
+let DATA = [];
 fetch("historyData.csv")
   .then(response => response.text()) //2
   .then(data => {  //3
