@@ -37,6 +37,14 @@ fetch("historyData.csv")
       });
     });
   });
+// let COLORS = new Map();
+// fetch("historyColors.csv")
+//   .then(response => response.text()) //2
+//   .then(data => {  //3
+//     data.trim().split("\n").forEach(datum=>{
+//       COLORS.set(datum[0],datum[1]);
+//     });
+//   });
 
 // const DATA = ([
 //   {
@@ -82,21 +90,31 @@ fetch("historyData.csv")
 const COLORS = new Map([
  ["アメリカ合衆国", "#3c3b6e"],
  ["共和党", "#e9141e"],
- ["民主党", "#0042ca"]
+ ["民主党", "#0042ca"],
+ ["イギリス", "#4E9432"],
+ ["保守党","#00B0F0"],
+ ["労働党", "#DD1F19"],
+ ["ロシア連邦", "#FFFFFF"],
+ ["無所属", "#CCCCCC"],
+ ["ソビエト連邦", "#CD0000"],
+ ["ソ連共産党", "#CA0000"]
 ]);
 
 const PLACES = new Map([
- ["アメリカ合衆国", [0, 0]]
+ ["アメリカ合衆国", [0, 0]],
+ ["イギリス", [1, 0]],
+ ["ロシア連邦", [0, 1]],
+ ["ソビエト連邦", [0, 1]]
 ]);
 
 let PICTURES = DATA.length;
 let loadedPictures = 0;
 
 let input = document.getElementById("input");
-input.min = getTime("2001-1-1");
-input.max = getTime("2023-5-2");
+input.min = getTime("1946/1/1");
+input.max = getTime("2022/12/31");
 input.step = 86400000;
-input.value = getTime("2020-1-1");
+input.value = getTime("2020/1/1");
 
 
 function main(){
