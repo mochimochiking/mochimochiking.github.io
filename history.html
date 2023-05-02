@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body{
+  background-color: #000000;
+}
+</style>
+</head>
+<body>
+<input type="range" id="input" oninput="main()"><br>
+<canvas id="canvas1" width="1280" height="720"></canvas>
+<script>
+let DATA;
+fetch("historyData.csv")
+  .then(response => response.text()) //2
+  .then(data => {  //3
+    data.split("\n").forEach(datum=>{
+      datum = datum.split(",")
+      DATA.push({
+        country: datum[0],
+        name: datum[1],
+        from: getTime(datum[2]),
+        to: getTime(datum[3]),
+        party: datum[4],
+        image: (()=>{
+          let img = new Image();
+          img.src = datum[4];
+          img.onload = ()=>{
+            loadedPictures++;
+            if(loadedPictures == PICTURES){
+              main();
+            }
+          }
+          return img;
+        })()
+      });
+    });
+  });
+
+// const DATA = ([
+//   {
+//     country: "アメリカ合衆国",
+//     name: "ジョー・バイデン",
+//     from: "2021/1/20",
+//     to: "2025/1/20",
+//     party: "民主党",
+//     pict: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Joe_Biden_presidential_portrait_%28cropped%29.jpg"
+//   },
+//   {
+//     country: "アメリカ合衆国",
+//     name: "ドナルド・トランプ",
+//     from: "2017/1/20",
+//     to: "2021/1/20",
+//     party: "共和党",
+//     pict: "https://upload.wikimedia.org/wikipedia/commons/5/53/Donald_Trump_official_portrait_%28cropped%29.jpg"
+//   },
+//   {
+//     country: "アメリカ合衆国",
+//     name: "バラク・オバマ",
+//     from: "2009/1/20",
+//     to: "2017/1/20",
+//     party: "民主党",
+//     pict: "https://upload.wikimedia.org/wikipedia/commons/5/55/President_Barack_Obama%2C_2012_portrait_crop.jpg"
+//   },
+// ]
+
+// DATA = DATA.map(x=>{
+//   x.from = getTime(x.from);
+//   x.to = getTime(x.to);
+//   x.image = new Image();
+//   x.image.src = x.pict;
+//   x.image.onload = ()=>{
+//     loadedPictures++;
+//     if(loadedPictures == PICTURES){
+//       main();
+//     }
+//   }
+//   return x;
+// }));
+
+const COLORS = new Map([
+ ["アメリカ合衆国", "#3c3b6e"],
+ ["共和党", "#e9141e"],
+ ["民主党", "#0042ca"]
+]);
+
+const PLACES = new Map([
+ ["アメリカ合衆国", [0, 0]]
+]);
+
+let PICTURES = DATA.length;
+let loadedPictures = 0;
+
+let input = document.getElementById("input");
+input.min = getTime("2001-1-1");
+input.max = getTime("2023-5-2");
+input.step = 86400000;
+input.value = getTime("2020-1-1");
+
+
+function main(){
+  let canvas = document.getElementById("canvas1");
+  let ctx = canvas.getContext("2d");
+
+  let time = Number(input.value);
+
+  ctx.clearRect(0, 0, 1280, 720);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 1280, 720);
+
+  for(let i=1; i<8; i++){
+    ctx.beginPath();
+    ctx.moveTo(i*160, 0);
+    ctx.lineTo(i*160, 720);
+    ctx.stroke();
+  }
+  for(let i of [1, 2]){
+    ctx.beginPath();
+    ctx.moveTo(0, i*240);
+    ctx.lineTo(1280, i*240);
+    ctx.stroke();
+  }
+
+  for(let i=0; i<DATA.length; i++){
+    let person = DATA[i];
+    if(person.from<=time && time<person.to){
+      let px = PLACES.get(person.country)[0]*160;
+      let py = PLACES.get(person.country)[1]*240;
+      // 基本的に 160x240
+      drawImage(person.image, px, py, 160, 200);
+
+      ctx.fillStyle = COLORS.get(person.party);
+      ctx.fillRect(px, py+180, 160, 30);
+      ctx.fillStyle = "#fff";
+      ctx.shadowColor = "#000";
+      ctx.textAlign = "center";
+      ctx.font = "20px \"UD デジタル 教科書体 NK-R\"";
+      ctx.shadowBlur = 5;
+      ctx.fillText(person.name, px+80, py+202, 140);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = COLORS.get(person.country);
+      ctx.fillRect(px, py+210, 160, 30);
+      ctx.fillStyle = "#fff";
+      ctx.shadowBlur = 5;
+      ctx.fillText(person.country, px+80, py+232, 140);
+      ctx.shadowBlur = 0;
+    }
+
+    ctx.fillStyle = "#ec3";
+    ctx.fillRect(960, 660, 320, 60);
+    ctx.fillStyle = "#fff";
+    ctx.shadowBlur = 5;
+    ctx.font = "40px \"consolas\"";
+    ctx.fillText(new Date(time).toLocaleDateString("ja-JP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }), 1120, 705, 320);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawImage(img, dx, dy, dWidth, dHeight){
+    let sx, sy, sWidth, sHeight;
+    if(img.width/img.height>dWidth/dHeight){
+      [sx, sy, sWidth, sHeight] = [(img.width-img.height*dWidth/dHeight)/2, 0, img.height*dWidth/dHeight, img.height];
+    }else{
+      [sx, sy, sWidth, sHeight] = [0, (img.height-img.width*dHeight/dWidth)/2, img.width, img.width*dHeight/dWidth];
+    }
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+  }
+}
+
+function getTime(txt){
+  return (new Date(txt)).getTime();
+}
+main();
+</script>
+</body>
+</html>
