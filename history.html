@@ -25,7 +25,7 @@ fetch("historyData.csv")
         party: datum[4],
         image: (()=>{
           let img = new Image();
-          img.src = datum[4];
+          img.src = datum[5];
           img.onload = ()=>{
             loadedPictures++;
             if(loadedPictures == PICTURES){
