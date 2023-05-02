@@ -15,8 +15,8 @@ let DATA = [];
 fetch("historyData.csv")
   .then(response => response.text()) //2
   .then(data => {  //3
-    data.split("\n").forEach(datum=>{
-      datum = datum.split(",")
+    data.trim().split("\n").forEach(datum=>{
+      datum = datum.split(",");
       DATA.push({
         country: datum[0],
         name: datum[1],
