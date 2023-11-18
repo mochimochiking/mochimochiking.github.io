@@ -108,7 +108,10 @@ const COLORS = new Map([
  ["中国共産党", "#ef1620"],
  ["中華民国", "#000095"],
  ["民主進歩党", "#009b00"],
- ["中国国民党", "#0000ac"]
+ ["中国国民党", "#0000ac"],
+ ["保守派", "#004ea2"],
+ ["進歩派", "#e61e2b"],
+ ["軍事政権", "#0385ea"]
 ]);
 
 const PLACES = new Map([
@@ -118,7 +121,8 @@ const PLACES = new Map([
  ["ソビエト連邦", [0, 1]],
  ["日本", [1, 1]],
  ["中華人民共和国", [2, 0]],
- ["中華民国", [2, 1]]
+ ["中華民国", [2, 1]],
+ ["大韓民国", [3, 0]]
 ]);
 
 let PICTURES = DATA.length;
@@ -160,7 +164,7 @@ function main(){
       let px = PLACES.get(person.country)[0]*160;
       let py = PLACES.get(person.country)[1]*240;
       // 基本的に 160x240
-      drawImage(person.image, px, py, 160, 200);
+      if("image" in person)drawImage(person.image, px, py, 160, 200);
 
       ctx.fillStyle = COLORS.get(person.party);
       ctx.fillRect(px, py+180, 160, 30);
