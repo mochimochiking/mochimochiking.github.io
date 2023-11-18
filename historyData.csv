@@ -10,7 +10,7 @@
 アメリカ合衆国,リチャード・ニクソン,1969/1/20,1974/8/9,共和党,https://upload.wikimedia.org/wikipedia/commons/3/3e/Richard_Nixon_presidential_portrait_%28cropped%29.jpg
 アメリカ合衆国,リンドン・ジョンソン,1963/11/22,1969/1/20,民主党,https://upload.wikimedia.org/wikipedia/commons/c/c3/37_Lyndon_Johnson_3x4.jpg
 アメリカ合衆国,ジョン・F・ケネディ,1961/1/20,1963/11/22,民主党,https://upload.wikimedia.org/wikipedia/commons/3/30/John_F._Kennedy_cropped_2.jpg
-アメリカ合衆国,ドワイト・D・アイゼンハワー,1953/1/20,1961/1/20,共和党,https://upload.wikimedia.org/wikipedia/commons/3/30/John_F._Kennedy_cropped_2.jpg
+アメリカ合衆国,ドワイト・D・アイゼンハワー,1953/1/20,1961/1/20,共和党,https://upload.wikimedia.org/wikipedia/commons/6/63/Dwight_D._Eisenhower%2C_official_photo_portrait%2C_May_29%2C_1959.jpg
 アメリカ合衆国,ハリー・S・トルーマン,1945/4/12,1953/1/20,民主党,https://upload.wikimedia.org/wikipedia/commons/0/0b/TRUMAN_58-766-06_%28cropped%29.jpg
 イギリス,リシ・スナク,2022/10/25,2023/12/31,保守党,https://upload.wikimedia.org/wikipedia/commons/b/b1/PM_Rishi_Sunak_%28cropped_2%29.jpg
 イギリス,リズ・トラス,2022/9/6,2022/10/25,保守党,https://upload.wikimedia.org/wikipedia/commons/1/16/Liz_Truss_official_portrait_%28cropped%292.jpg
@@ -150,6 +150,9 @@
 南ベトナム,バオ・ダイ,1949/6/14,1955/4/30,南ベトナム,https://upload.wikimedia.org/wikipedia/commons/8/8b/Baodai2.jpg
 南ベトナム,ゴ・ディン・ジエム,1955/4/30,1955/10/26,南ベトナム,https://upload.wikimedia.org/wikipedia/commons/0/08/Ngo_Dinh_Diem_-_Thumbnail_-_ARC_542189.png
 インド,ジャワハルラール・ネルー, 1947/8/15,1964/5/27,インド,https://upload.wikimedia.org/wikipedia/commons/5/55/Jawaharlal_Nehru_1946.jpg
+インド,インディラ・ガンディー,1966/1/24,1977/3/24,インド,https://upload.wikimedia.org/wikipedia/commons/b/ba/Indira_Gandhi_1977.jpg
+インド,インディラ・ガンディー,1980/1/14,1984/10/31,インド,https://upload.wikimedia.org/wikipedia/commons/b/ba/Indira_Gandhi_1977.jpg
+インド,ラジーヴ・ガンディー,1984/10/31,1989/12/2,インド,https://upload.wikimedia.org/wikipedia/commons/0/02/Rajiv_Gandhi_%281987%29.jpg
 パキスタン,ムハンマド・アリー・ジンナー,1947/4/15,1948/9/11,パキスタン,https://upload.wikimedia.org/wikipedia/commons/e/ee/Jinnah_crop.jpg
 イラン,モハンマド・モサデグ,1951/4/30,1952/7/17,イラン,https://upload.wikimedia.org/wikipedia/commons/7/7f/Portrait_of_Mohammad_Mosaddegh_-_circa_1952.jpg
 イラン,モハンマド・モサデグ,1952/7/22,1953/8/19,イラン,https://upload.wikimedia.org/wikipedia/commons/7/7f/Portrait_of_Mohammad_Mosaddegh_-_circa_1952.jpg
@@ -161,7 +164,7 @@
 エジプト,ムハンマド・ナギーブ,1953/6/18,1954/11/14,エジプト,https://upload.wikimedia.org/wikipedia/commons/c/ca/Muhammad_Naguib.jpg
 エジプト,ガマール・アブドゥル＝ナーセル,1954/11/14,1970/9/28,エジプト,https://upload.wikimedia.org/wikipedia/commons/a/a7/Gamal_Abdel_Nasser_%28c._1960s%29.jpg
 エジプト,アンワル・アッ＝サーダート,1970/9/28,1981/10/6,エジプト,https://upload.wikimedia.org/wikipedia/commons/b/b0/Anwar_Sadat_cropped.jpg
-エジプト,スーフィー・アブー・ターリブ,1981/10/6,1981/10/14,エジプト,https://commons.wikimedia.org/wiki/Category:Sufi_Abu-Taleb?uselang=ja#/media/File:Sufi_Abu_Taleb.gif
+エジプト,スーフィー・アブー・ターリブ,1981/10/6,1981/10/14,エジプト,https://upload.wikimedia.org/wikipedia/commons/d/d6/Sufi_Abu_Taleb.gif
 エジプト,ホスニー・ムバーラク,1981/10/14,2011/2/11,エジプト,https://upload.wikimedia.org/wikipedia/commons/8/89/Hosni_Mubarak_-_Official_Photo.JPG
 ガーナ,クワメ・ンクルマ,1960/7/1,1966/2/24,ガーナ,https://upload.wikimedia.org/wikipedia/commons/d/dc/Kwame_Nkrumah_%28JFKWHP-AR6409-A%29.jpg
 コンゴ,パトリス・ルムンバ,1960/6/24,1960/9/5,コンゴ,https://upload.wikimedia.org/wikipedia/commons/f/f7/Anefo_910-9740_De_Congolese2.jpg
@@ -172,6 +175,18 @@
 フィリピン,フェルディナンド・マルコス,1965/12/30,1986/2/25,フィリピン,https://upload.wikimedia.org/wikipedia/commons/b/b4/Ferdinand_Marcos_%28cropped%29.jpg
 シンガポール,リー・クアンユー,1955/6/3,1990/11/28,シンガポール,https://upload.wikimedia.org/wikipedia/commons/0/0f/Lee_Kuan_Yew.jpg
 ルーマニア,ニコラエ・チャウシェスク,1974/3/28,1989/12/22,ルーマニア,https://upload.wikimedia.org/wikipedia/commons/0/01/Nicolae_Ceau%C8%99escu.jpg
+イラク,サッダーム・フセイン,1979/7/16,2003/4/9,イラク,https://upload.wikimedia.org/wikipedia/commons/9/9a/Saddam_Hussein_in_1998.png
 東ドイツ,エーリッヒ・ホネッカー,1971/5/3,1989/10/18,東ドイツ,https://upload.wikimedia.org/wikipedia/commons/2/2f/Bundesarchiv_Bild_183-R1220-401%2C_Erich_Honecker.jpg
 セルビア,スロボダン・ミロシェヴィッチ,1990/9/28,1997/7/23,セルビア,https://upload.wikimedia.org/wikipedia/commons/6/64/Stevan_Kragujevic%2C_Slobodan_Milosevic%2C_portret.jpg
 ユーゴスラビア,スロボダン・ミロシェヴィッチ,1997/7/23,2000/10/7,ユーゴスラビア,https://upload.wikimedia.org/wikipedia/commons/6/64/Stevan_Kragujevic%2C_Slobodan_Milosevic%2C_portret.jpg
+チリ,サルバドール・アジェンデ,1970/11/3,1973/9/11,チリ,https://upload.wikimedia.org/wikipedia/commons/0/0d/Salvador_Allende_Gossens-.jpg
+チリ,アウグスト・ピノチェト,1973/9/11,1990/3/11,チリ,https://upload.wikimedia.org/wikipedia/commons/4/43/Augusto_Pinochet_%28cropped%29.png
+マレーシア,マハティール・ビン・モハマド,1981/7/16,2003/10/31,マレーシア,https://upload.wikimedia.org/wikipedia/commons/b/b6/Mahathir_Mohamad_in_August_2018.jpg
+マレーシア,マハティール・ビン・モハマド,2018/5/10,2020/2/24,マレーシア,https://upload.wikimedia.org/wikipedia/commons/b/b6/Mahathir_Mohamad_in_August_2018.jpg
+南アフリカ,フレデリック・ウィレム・デクラーク,1989/8/15,1994/5/10,南アフリカ,https://upload.wikimedia.org/wikipedia/commons/b/b6/F._W._de_Klerk_2012.jpg
+南アフリカ,ネルソン・マンデラ,1994/5/10,1999/6/14,南アフリカ,https://upload.wikimedia.org/wikipedia/commons/0/02/Nelson_Mandela_1994.jpg
+リベリア,エレン・ジョンソン・サーリーフ,2006/1/16,2018/1/22,リベリア,https://upload.wikimedia.org/wikipedia/commons/f/f1/Ellen_Johnson_Sirleaf_February_2015.jpg
+イスラエル,イツハク・ラビン,1974/6/3,1977/6/20,イスラエル,https://upload.wikimedia.org/wikipedia/commons/1/1c/Yitzhak_Rabin_%281986%29_cropped.jpg
+イスラエル,イツハク・ラビン,1992/7/13,1995/11/4,イスラエル,https://upload.wikimedia.org/wikipedia/commons/1/1c/Yitzhak_Rabin_%281986%29_cropped.jpg
+イスラエル,アリエル・シャロン,2001/3/7,2006/4/14,イスラエル,https://upload.wikimedia.org/wikipedia/commons/e/e0/Ariel_Sharon_2001.jpg
+ミャンマー,アウン・サン・スー・チー,2016/4/6,2021/2/1,ミャンマー,https://upload.wikimedia.org/wikipedia/commons/9/97/Aung_San_Suu_Kyi_at_the_Enthronement_of_Naruhito_%281%29.jpg
