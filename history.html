@@ -220,9 +220,8 @@ function main(){
         if("image" in person)drawImage(person.image, px, py, 160, 180);
       }else{
         let px = PLACES.get(person.country)[0]*160;
-        let py = PLACES.get(person.country)[1]*220;
-        if("image" in person)drawImage(person.image, px, py, 160, 160);
-        py += 20;
+        let py = PLACES.get(person.country)[1]*220-20;
+        if("image" in person)drawImage(person.image, px, py+20, 160, 160);
       }
 
       ctx.fillStyle = COLORS.get(person.party);
