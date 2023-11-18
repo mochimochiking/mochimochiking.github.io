@@ -214,15 +214,15 @@ function main(){
   for(let i=0; i<DATA.length; i++){
     let person = DATA[i];
     if(person.from<=time && time<person.to){
-      // if(PLACES.get(person.country)[0] < 6){
+      if(PLACES.get(person.country)[0] < 6){
         let px = PLACES.get(person.country)[0]*160;
         let py = PLACES.get(person.country)[1]*240;
         if("image" in person)drawImage(person.image, px, py, 160, 180);
-      // }else{
-      //   let px = PLACES.get(person.country)[0]*160;
-      //   let py = PLACES.get(person.country)[1]*220-20;
-      //   if("image" in person)drawImage(person.image, px, py+20, 160, 160);
-      // }
+      }else{
+        let px = PLACES.get(person.country)[0]*160;
+        let py = PLACES.get(person.country)[1]*220-20;
+        if("image" in person)drawImage(person.image, px, py+20, 160, 160);
+      }
 
       ctx.fillStyle = COLORS.get(person.party);
       ctx.fillRect(px, py+180, 160, 30);
