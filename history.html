@@ -311,7 +311,8 @@ function go(){
   NOW = Date.now();
   setInterval(()=>{
     let diff = Date.now() - NOW;
-    input.value = Math.max(getTime("1946/1/1")+diff*31556926/3, getTime("2022/12/31"));
+    input.value = Math.min(getTime("1946/1/1")+diff*31556926/3, getTime("2022/12/31"));
+    main();
   }, 0);
 }
 </script>
