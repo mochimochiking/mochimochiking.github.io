@@ -4,13 +4,15 @@
 <style>
 body{
   background-color: #000000;
+  margin: 0;
 }
 </style>
 </head>
 <body>
-<input type="range" id="input" oninput="main()" style="width:1280px"><br>
-<canvas id="canvas1" width="1280" height="720"></canvas>
+<canvas id="canvas1" width="1280" height="720"></canvas><br>
+<input type="range" id="input" oninput="main()" style="width:1280px">
 <script>
+
 let DATA = [];
 fetch("historyData.csv")
   .then(response => response.text()) //2
@@ -214,6 +216,8 @@ input.max = getTime("2022/12/31");
 input.step = 86400000;
 input.value = getTime("2020/1/1");
 
+let background = new Image();
+background.src = "https://pixabay.com/get/gd09c89d7b9d96acedfe3a534c2c63a0205372e7e109f2657b5deac97f89a636f19308efcf0f2512b4244c9a888b7b0ecc987dc465fb46848b36275d698df365c_1280.jpg";
 
 function main(){
   let canvas = document.getElementById("canvas1");
@@ -221,9 +225,10 @@ function main(){
 
   let time = Number(input.value);
 
-  ctx.clearRect(0, 0, 1280, 720);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, 1280, 720);
+  // ctx.clearRect(0, 0, 1280, 720);
+  // ctx.fillStyle = "#ffffff";
+  // ctx.fillRect(0, 0, 1280, 720);
+  drawImage(background, 0, 0, 1280, 720);
 
   // for(let i=1; i<8; i++){
   //   ctx.beginPath();
