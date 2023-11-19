@@ -10,7 +10,8 @@ body{
 </head>
 <body>
 <canvas id="canvas1" width="1280" height="720"></canvas><br>
-<input type="range" id="input" oninput="main()" style="width:1280px">
+<input type="range" id="input" oninput="main()" style="width:1280px"><br>
+<input type="button" id="button" value="button" onclick="go()">
 <script>
 
 let DATA = [];
@@ -303,6 +304,16 @@ function getTime(txt){
   return (new Date(txt)).getTime();
 }
 main();
+
+let NOW;
+function go(){
+  document.getElementById("button").setAttribute("disabled", true);
+  NOW = Date.now();
+  setInterval(()=>{
+    let diff = Date.now() - NOW;
+    input.value = Math.max(getTime("1946/1/1")+diff*31556926/3, getTime("2022/12/31"));
+  }, 0);
+}
 </script>
 </body>
 </html>
