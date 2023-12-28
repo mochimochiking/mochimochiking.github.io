@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>言語地図</title>
+  <style>
+*{
+  margin: 0;
+  text-align: center;
+}
+.introduce{
+  border: solid;
+}
+.caption{
+  background-color: white;
+}
+input{
+  margin: auto;
+  border: solid;
+}
+.lang{
+  text-align: center;
+  white-space: nowrap;
+  font-size:15px;
+}
+.Altaic{
+  background-color: yellowgreen;
+}
+.Sino-Tibetan{
+  background-color: tomato;
+}
+.Hmong–Mien{
+  background-color: #ff0033;
+}
+.Tai-Kadai{
+  background-color: lavender;
+}
+.Austroasiatic{
+  background-color: lightcoral;
+}
+.Austronesian{
+  background-color: pink;
+}
+.Dravidian{
+  background-color: mediumspringgreen;
+}
+.Uralic{
+  background-color: limegreen;
+}
+.Indo-European{
+  background-color: lawngreen;
+}
+.Basque{
+  background-color: #dddddd;
+}
+.Caucasus{
+  background-color: lightgreen;
+}
+.Afro-Asia{
+  background-color: yellow;
+}
+.Niger-Congo{
+  background-color: orange;
+}
+.Creole{
+  background-color: tan;
+}
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+  <div id="map" style="width: 100%; height: 100vh;"></div>
+  <script>
+const map = L.map("map").setView([47, 19], 5);
+L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+  attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+}).addTo(map);
+
+const data = [
+  ["日本語", "ja", [36, 137], "Altaic",],
+  ["朝鮮語", "ko", [38, 127], "Altaic"],
+  ["モンゴル語", "mn", [47, 103], "Altaic"],
+  ["中国語（簡体）", "zh-CN", [35, 115], "Sino-Tibetan"],
+  ["中国語（繁体）", "zh-TW", [24, 121], "Sino-Tibetan"],
+  ["ビルマ語", "my", [21, 96], "Sino-Tibetan"],
+  ["モン語", "hmn", [22, 101], "Hmong–Mien"],
+  ["タイ語", "th", [15, 100], "Tai-Kadai"],
+  ["ラオ語", "lo", [20, 102], "Tai-Kadai"],
+  ["クメール語", "km", [13, 105], "Austroasiatic"],
+  ["ベトナム語", "vi", [21, 105], "Austroasiatic"],
+  ["タガログ語", "tl", [13, 122], "Austronesian"],
+  ["セブアノ語", "ceb", [9, 125], "Austronesian"],
+  ["マレー語", "ms", [3, 102], "Austronesian"],
+  ["インドネシア語", "id", [0, 105], "Austronesian"],
+  ["ジャワ語", "jv", [-8, 112], "Austronesian"],
+  ["スンダ語", "su", [-7, 107], "Austronesian"],
+  ["マダガスカル語", "mg", [-20, 46], "Austronesian"],
+  ["サモア語", "sm", [-14, 172], "Austronesian"],
+  ["ハワイ語", "sm", [20, 204], "Austronesian"],
+  ["テルグ語", "te", [16, 79], "Dravidian"],
+  ["カンナダ語", "kn", [14, 76], "Dravidian"],
+  ["マラヤーラム語", "ml", [10, 77], "Dravidian"],
+  ["タミル語", "ta", [12, 78], "Dravidian"],
+  ["ウイグル語", "ug", [40, 85], "Altaic"],
+  ["ウズベク語", "uz", [41, 64], "Altaic"],
+  ["カザフ語", "kk", [50, 70], "Altaic"],
+  ["キルギス語", "ky", [42, 74], "Altaic"],
+  ["タタール語", "tt", [55, 51], "Altaic"],
+  ["トルクメン語", "tk", [38, 58], "Altaic"],
+  ["トルコ語", "tr", [40, 31], "Altaic"],
+  ["アゼルバイジャン語", "az", [40, 49], "Altaic"],
+  ["ハンガリー語", "hu", [47, 19], "Uralic"],
+  ["フィンランド語", "fi", [61, 25], "Uralic"],
+  ["エストニア語", "et", [59, 25], "Uralic"],
+  ["ベンガル語", "bn", [23, 90], "Indo-European"],
+  ["オリヤー語", "or", [20, 84], "Indo-European"],
+  ["ネパール語", "ne", [28, 85], "Indo-European"],
+  ["ヒンディー語", "hi", [27, 78], "Indo-European"],
+  ["ウルドゥー語", "ur", [25, 67], "Indo-European"],
+  ["グジャラート語", "gu", [22, 71], "Indo-European"],
+  ["パンジャーブ語", "pa", [31, 75], "Indo-European"],
+  ["シンド語", "sd", [26, 60], "Indo-European"],
+  ["マラーティー語", "mr", [20, 76], "Indo-European"],
+  ["シンハラ語", "si", [7, 80], "Indo-European"],
+  ["パシュトー語", "ps", [31, 69], "Indo-European"],
+  ["クルド語", "ku", [37, 44], "Indo-European"],
+  ["ペルシャ語", "fa", [33, 54], "Indo-European"],
+  ["タジク語", "tg", [38, 69], "Indo-European"],
+  ["アルメニア語", "hy", [40, 45], "Indo-European"],
+  ["ギリシャ語", "el", [39, 23], "Indo-European"],
+  ["アルバニア語", "sq", [41, 20], "Indo-European"],
+  ["ラトビア語", "lv", [57, 24], "Indo-European"],
+  ["リトアニア語", "lt", [55, 24], "Indo-European"],
+  ["ロシア", "ru", [56, 38], "Indo-European"],
+  ["ベラルーシ語", "be", [54, 28], "Indo-European"],
+  ["ウクライナ語", "uk", [50, 31], "Indo-European"],
+  ["ポーランド語", "pl", [52, 20], "Indo-European"],
+  ["スロバキア語", "sk", [49, 18], "Indo-European"],
+  ["チェコ語", "cs", [50, 15], "Indo-European"],
+  ["ブルガリア語", "bg", [43, 24], "Indo-European"],
+  ["マケドニア語", "mk", [42, 22], "Indo-European"],
+  ["セルビア語", "sr", [44, 21], "Indo-European"],
+  ["ボスニア語", "bs", [44, 18], "Indo-European"],
+  ["クロアチア語", "hr", [45, 17], "Indo-European"],
+  ["スロベニア語", "sl", [46, 15], "Indo-European"],
+  ["ルーマニア語", "ro", [46, 15], "Indo-European"],
+  ["イタリア語", "it", [42, 13], "Indo-European"],
+  ["コルシカ語", "co", [42, 9], "Indo-European"],
+  ["フランス語", "fr", [48, 3], "Indo-European"],
+  ["カタルーニャ語", "ca", [42, 2], "Indo-European"],
+  ["スペイン語", "es", [41, -4], "Indo-European"],
+  ["ガリシア語", "gl", [43, -7], "Indo-European"],
+  ["ポルトガル語", "pt", [39, -9], "Indo-European"],
+  ["ドイツ語", "de", [51, 12], "Indo-European"],
+  ["イディッシュ語", "yi", [51, 15], "Indo-European"],
+  ["ルクセンブルク語", "lb", [50, 6], "Indo-European"],
+  ["オランダ語", "nl", [52, 5], "Indo-European"],
+  ["アフリカーンス語", "af", [-33, 18], "Indo-European"],
+  ["フリジア語", "fy", [53, 6], "Indo-European"],
+  ["英語", "en", [51, -1], "Indo-European"],
+  ["デンマーク語", "da", [55, 11], "Indo-European"],
+  ["スウェーデン語", "sv", [59, 17], "Indo-European"],
+  ["ノルウェー語", "no", [60, 10], "Indo-European"],
+  ["アイスランド語", "is", [65, -19], "Indo-European"],
+  ["スコットランド・ゲール語", "gd", [57, -4], "Indo-European"],
+  ["アイルランド語", "ga", [53, -9], "Indo-European"],
+  ["ウェールズ語", "cy", [53, -4], "Indo-European"],
+  ["バスク語", "eu", [43, -1], "Basque"],
+  ["ジョージア語", "ka", [42, 44], "Caucasus"],
+  ["アラビア語", "ar", [25, 28], "Afro-Asia"],
+  ["マルタ語", "mt", [36, 14.2], "Afro-Asia"],
+  ["ヘブライ語", "he", [32, 35], "Afro-Asia"],
+  ["アムハラ語", "am", [10, 39], "Afro-Asia"],
+  ["ソマリ語", "so", [5, 46], "Afro-Asia"],
+  ["ハウサ語", "ha", [13, 6], "Afro-Asia"],
+  ["ヨルバ語", "yo", [6, 4], "Niger-Congo"],
+  ["イボ語", "ig", [5, 7], "Niger-Congo"],
+  ["スワヒリ語", "se", [-4, 38], "Niger-Congo"],
+  ["ルワンダ語", "rw", [-2, 30], "Niger-Congo"],
+  ["チェワ語", "ny", [-13, 34], "Niger-Congo"],
+  ["ショナ語", "sn", [-17, 29], "Niger-Congo"],
+  ["ソト語", "st", [-28, 28], "Niger-Congo"],
+  ["ズールー語", "zu", [-28, 32], "Niger-Congo"],
+  ["コサ語", "xh", [-32, 29], "Niger-Congo"],
+  ["ハイチ語", "ht", [19, -72], "Creole"]  
+];
+for(let item of data){
+  L.marker(item[2], {icon: L.divIcon({
+  html: `<span lang="${item[1]}" id="${item[1]}">${(item[0])}</span>`,
+  className: `lang ${item[3]}`,
+  iconSize: ["100%", "100%"],
+  iconAnchor: [20, 10],
+  popupAnchor: [0, -10]
+  // iconAnchor: [0, 0],
+  // popupAnchor: [0, 0]
+})}).addTo(map).bindPopup(`<span class="introduce">${item[0]}</span><br>${item[0]}から翻訳：<br><input type="text" id="input-${item[1]}"/><input type="button" value="翻訳" onclick="change('${item[1]}')">`); 
+}
+
+function change(source){
+  let input = document.getElementById(`input-${source}`).value;
+  function translate(target){
+    document.getElementById(target).innerText = "翻訳中…";
+    fetch(`https://script.google.com/macros/s/AKfycbzNRZ7XmiVM4kKZdfV2IAp7I-ENutCfyrhMlgNr/exec?text=${input}&source=${source}&target=${target}`)
+      .then(response => response.text())
+      .then(text => {
+        document.getElementById(target).innerText = text;
+      });
+  }  
+  document.getElementById(source).innerText = input;
+  for(let item of data){
+    if(source==item[1]){
+      continue;
+    }
+    translate(item[1]);
+  }
+}
+  </script>
+<div class="leaflet-bottom leaflet-left caption">
+  使い方：翻訳元の言語名をクリックして翻訳したい内容を入力します
+</div>
+</body>
+</html>
