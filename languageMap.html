@@ -22,48 +22,52 @@ input{
   text-align: center;
   white-space: nowrap;
   font-size: 15px;
-  border: solid;
+  text-indent: -100%;
 }
-.Altaic{
+.lang>span{  
+  border: solid;
+  /* border-radius: 5px 5px; */
+}
+.Altaic>span{
   background-color: yellowgreen;
 }
-.Sino-Tibetan{
+.Sino-Tibetan>span{
   background-color: tomato;
 }
-.Hmong–Mien{
+.Hmong–Mien>span{
   background-color: #ff0033;
 }
-.Tai-Kadai{
+.Tai-Kadai>span{
   background-color: lavender;
 }
-.Austroasiatic{
+.Austroasiatic>span{
   background-color: lightcoral;
 }
-.Austronesian{
+.Austronesian>span{
   background-color: pink;
 }
-.Dravidian{
+.Dravidian>span{
   background-color: mediumspringgreen;
 }
-.Uralic{
+.Uralic>span{
   background-color: limegreen;
 }
-.Indo-European{
+.Indo-European>span{
   background-color: lawngreen;
 }
-.Basque{
+.Basque>span{
   background-color: #dddddd;
 }
-.Caucasus{
+.Caucasus>span{
   background-color: lightgreen;
 }
-.Afro-Asia{
+.Afro-Asia>span{
   background-color: yellow;
 }
-.Niger-Congo{
+.Niger-Congo>span{
   background-color: orange;
 }
-.Creole{
+.Creole>span{
   background-color: tan;
 }
   </style>
@@ -121,7 +125,7 @@ const data = [
   ["ウルドゥー語", "ur", [25, 67], "Indo-European"],
   ["グジャラート語", "gu", [22, 71], "Indo-European"],
   ["パンジャーブ語", "pa", [31, 75], "Indo-European"],
-  ["シンド語", "sd", [26, 60], "Indo-European"],
+  ["シンド語", "sd", [26, 61], "Indo-European"],
   ["マラーティー語", "mr", [20, 76], "Indo-European"],
   ["シンハラ語", "si", [7, 80], "Indo-European"],
   ["パシュトー語", "ps", [31, 69], "Indo-European"],
@@ -133,7 +137,7 @@ const data = [
   ["アルバニア語", "sq", [41, 20], "Indo-European"],
   ["ラトビア語", "lv", [57, 24], "Indo-European"],
   ["リトアニア語", "lt", [55, 24], "Indo-European"],
-  ["ロシア", "ru", [56, 38], "Indo-European"],
+  ["ロシア語", "ru", [56, 38], "Indo-European"],
   ["ベラルーシ語", "be", [54, 28], "Indo-European"],
   ["ウクライナ語", "uk", [50, 31], "Indo-European"],
   ["ポーランド語", "pl", [52, 20], "Indo-European"],
@@ -143,9 +147,9 @@ const data = [
   ["マケドニア語", "mk", [42, 22], "Indo-European"],
   ["セルビア語", "sr", [44, 21], "Indo-European"],
   ["ボスニア語", "bs", [44, 18], "Indo-European"],
-  ["クロアチア語", "hr", [45, 17], "Indo-European"],
+  ["クロアチア語", "hr", [46, 17], "Indo-European"],
   ["スロベニア語", "sl", [46, 15], "Indo-European"],
-  ["ルーマニア語", "ro", [46, 15], "Indo-European"],
+  ["ルーマニア語", "ro", [44, 26], "Indo-European"],
   ["イタリア語", "it", [42, 13], "Indo-European"],
   ["コルシカ語", "co", [42, 9], "Indo-European"],
   ["フランス語", "fr", [48, 3], "Indo-European"],
@@ -191,10 +195,8 @@ for(let item of data){
   html: `<span lang="${item[1]}" id="${item[1]}">${(item[0])}</span>`,
   className: `lang ${item[3]}`,
   iconSize: ["100%", "100%"],
-  iconAnchor: [20, 10],
+  iconAnchor: [0, 10],
   popupAnchor: [0, -10]
-  // iconAnchor: [0, 0],
-  // popupAnchor: [0, 0]
 })}).addTo(map).bindPopup(`<span class="introduce">${item[0]}</span><br>${item[0]}から翻訳：<br><input type="text" id="input-${item[1]}"/><input type="button" value="翻訳" onclick="change('${item[1]}')">`); 
 }
 
