@@ -6,7 +6,6 @@
 * [元素名](element.html)
 * [アイコン](makeIcon.html)
 * [名字(途中)](myoji.html)
-
 ## Youtube
 * [Youtube用画像作成](youtubeImg.html)
 
@@ -18,7 +17,7 @@
 * [ギリシャ語発音](greek.html)
 * [多言語翻訳](translation.html)
 * [ロシア語活用(途中)](russian_grammar.html)
-
+* [世界の言語シリーズ 音声](language_audio.html)
 
 ### キーボード
 * [アクセント付き文字入力](keyboard.html)
