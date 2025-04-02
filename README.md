@@ -10,7 +10,7 @@
 * [Youtube用画像作成](youtubeImg.html)
 
 ## 色
-* [色図鑑(故障中)](color.html)
+* [近い色検索](colors.html)
 
 ## 言語
 * [ハングル発音](hangeul.html)
