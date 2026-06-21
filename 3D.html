@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>3D</title>
+    <style>
+      /* 見やすくするためにキャンバスに枠線を設定しています */
+      canvas {
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" width="400" height="400"></canvas>
+    
+    <script>
+      // 頂点の座標 [x, y, z]
+      const coord = [
+        [-100, -100, -100],
+        [ 100, -100, -100],
+        [-100,  100, -100],
+        [ 100,  100, -100],
+        [-100, -100,  100],
+        [ 100, -100,  100],
+        [-100,  100,  100],
+        [ 100,  100,  100]
+      ];
+
+      // 面を構成する頂点の番号
+      const faces = [
+        [0,1,3,2], [5,4,6,7],
+        [0,1,5,4], [3,2,6,7],
+        [0,2,6,4], [3,1,5,7]
+      ];
+
+      // 回転角度の初期化（コメントの指摘を反映し ang1, ang2 とする）
+      let ang1 = 0;
+      let ang2 = 0;
+
+      // 角度の分だけ回転させた座標を返す関数
+      function rotat(x, y, z) {
+        [x, y] = [x * Math.cos(ang1) - y * Math.sin(ang1), x * Math.sin(ang1) + y * Math.cos(ang1)];
+        [y, z] = [y * Math.cos(ang2) - z * Math.sin(ang2), y * Math.sin(ang2) + z * Math.cos(ang2)];
+        return [x, y, z];
+      }
+
+      // 遠さを調べる関数（y座標の平均を算出）
+      function rem(ary) {
+        return ary.map(a => rotat(...coord[a])[1]).reduce((a, b) => a + b) / ary.length;
+      }
+
+      // 描画処理
+      function draw() {
+        const ctx = document.getElementById("canvas").getContext("2d");
+        ctx.clearRect(0, 0, 400, 400); // 画面を初期化
+
+        // 遠い順（y座標が奥のもの）から描画するようにソート
+        let sorted = faces.map((a, i) => [a, i]).sort((a, b) => rem(a[0]) - rem(b[0]));
+        
+        for (let i of sorted) {
+          let rtteds = []; // 回転後の座標を記録する配列
+          for (let j of i[0]) {
+            rtteds.push(rotat(...coord[j]));
+          }
+
+          ctx.beginPath(); // 描画開始
+          ctx.fillStyle = ["#a05", "#a00", "#a50", "#aa0", "#5a0", "#0a0"][i[1]];
+
+          ctx.moveTo(200 + rtteds[0][0], 200 - rtteds[0][2]);
+          for (let j of rtteds) {
+            ctx.lineTo(200 + j[0], 200 - j[2]);
+          }
+          ctx.fill();
+        }
+      }
+
+      // キーボードの矢印キーで回転させる処理
+      document.body.onkeydown = e => {
+        switch(e.keyCode) {
+          case 37:
+            ang1 -= 0.1; // 左
+            break;
+          case 38:
+            ang2 -= 0.1; // 上
+            break;
+          case 39:
+            ang1 += 0.1; // 右
+            break;
+          case 40:
+            ang2 += 0.1; // 下
+            break;
+        }
+        draw(); // コメントの指摘を反映：キー入力後に再描画を実行
+      };
+
+      // 初回描画の実行
+      draw();
+    </script>
+  </body>
+</html>
