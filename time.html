@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>南中時計 (真太陽時)</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+        }
+        #clock {
+            font-size: 5rem;
+            font-weight: bold;
+            letter-spacing: 4px;
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 1rem;
+        }
+        #info {
+            font-size: 1rem;
+            color: #555;
+            text-align: center;
+            line-height: 1.6;
+            background: #fff;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .error {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="clock">--:--:--</div>
+    <div id="info">GPSから位置情報を取得しています...</div>
+
+    <script>
+        let currentLongitude = null;
+
+        // 均時差（Equation of Time）を計算する関数（単位：分）
+        function getEquationOfTime(date) {
+            // その年の1月1日を取得
+            const start = new Date(date.getFullYear(), 0, 0);
+            const diff = date - start;
+            const oneDay = 1000 * 60 * 60 * 24;
+            // 1月1日からの通日（day of year）
+            const dayOfYear = Math.floor(diff / oneDay);
+
+            // Bの計算（ラジアン）
+            const B = 2 * Math.PI * (dayOfYear - 81) / 365.24;
+            
+            // 均時差の近似式
+            return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+        }
+
+        function updateClock() {
+            if (currentLongitude === null) return;
+
+            const now = new Date();
+            const utcMs = now.getTime(); // 1970年からの経過ミリ秒 (UTC基準)
+
+            // 経度による時差（経度1度につき4分 = 240,000ミリ秒）
+            const longitudeOffsetMs = currentLongitude * 4 * 60 * 1000;
+
+            // 均時差による補正（分をミリ秒に変換）
+            const eotMs = getEquationOfTime(now) * 60 * 1000;
+
+            // 真太陽時のミリ秒を計算 (UTC時刻 + 経度補正 + 均時差補正)
+            const solarTimeMs = utcMs + longitudeOffsetMs + eotMs;
+
+            // Dateオブジェクトに変換（計算後の数値をそのまま絶対的な時刻として扱うためUTCメソッドで取得）
+            const solarDate = new Date(solarTimeMs);
+
+            const hours = String(solarDate.getUTCHours()).padStart(2, '0');
+            const minutes = String(solarDate.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(solarDate.getUTCSeconds()).padStart(2, '0');
+
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        // 毎秒時計を更新
+        setInterval(updateClock, 1000);
+
+        // Geolocation APIで位置情報を監視
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    currentLongitude = position.coords.longitude;
+                    document.getElementById('info').innerHTML = 
+                        `現在の経度: ${currentLongitude.toFixed(4)}°<br>この地点の南中時刻が12:00になるよう調整されています`;
+                    updateClock(); // 座標取得時に即時更新
+                },
+                (error) => {
+                    let errMsg = '位置情報の取得に失敗しました。';
+                    if (error.code === 1) {
+                        errMsg = '位置情報の利用が許可されていません。<br>ブラウザの設定を確認してください。';
+                    }
+                    document.getElementById('info').innerHTML = `<span class="error">${errMsg}</span>`;
+                },
+                { enableHighAccuracy: true, maximumAge: 30000, timeout: 27000 }
+            );
+        } else {
+            document.getElementById('info').innerHTML = '<span class="error">このブラウザはGPSをサポートしていません。</span>';
+        }
+    </script>
+
+</body>
+</html>
