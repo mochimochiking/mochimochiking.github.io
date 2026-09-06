@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHiSq (Wicki-Hayden in Squares)</title>
+<style>
+  body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f5f5f5;
+    margin: 0;
+  }
+  h1 {
+    font-size: 1.2rem;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  #keyboard {
+    display: grid;
+    /* 8列のグリッド。1マスのサイズは50px */
+    grid-template-columns: repeat(8, 50px);
+    grid-template-rows: repeat(8, 50px);
+    border: 5px solid black;
+    background-color: #222;
+    gap: 1px; /* 鍵盤の間の隙間 */
+  }
+  .key {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    user-select: none;
+    box-sizing: border-box;
+    transition: filter 0.1s, transform 0.05s;
+    background-color: white;
+  }
+  /* 押した時の視覚的なフィードバック */
+  .key:active, .key.active {
+    filter: brightness(0.8);
+    transform: scale(0.95);
+  }
+</style>
+</head>
+<body>
+
+<h1>WHiSq Keyboard</h1>
+<div id="keyboard"></div>
+
+<script>
+  const keyboard = document.getElementById('keyboard');
+  let audioCtx;
+  const oscillators = {};
+
+  // Web Audio APIの初期化（ユーザーアクション時に呼び出し）
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  // 音を鳴らす処理
+  function playNote(midiNote) {
+    initAudio();
+    if (oscillators[midiNote]) return; 
+
+    // MIDIノート番号から周波数を計算
+    const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.type = 'triangle'; // 三角波（柔らかめの音）
+    osc.frequency.value = freq;
+
+    // クリック音（ノイズ）を防ぐためのエンベロープ処理
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    osc.start();
+
+    oscillators[midiNote] = { osc, gainNode };
+  }
+
+  // 音を止める処理
+  function stopNote(midiNote) {
+    if (oscillators[midiNote]) {
+      const { osc, gainNode } = oscillators[midiNote];
+      gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+      osc.stop(audioCtx.currentTime + 0.1);
+      delete oscillators[midiNote];
+    }
+  }
+
+  const pitchClasses = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+  // グリッドを生成（一番上の行から下の行へ向かって配置）
+  for (let row = 7; row >= 0; row--) {
+    for (let col = 0; col < 8; col++) {
+      // 基準のMIDIノートは36 (C)。右へ全音(+2)、上へ完全四度(+5)
+      const midiNote = 36 + (col * 2) + (row * 5);
+      const pitchClass = midiNote % 12;
+
+      let label = pitchClasses[pitchClass];
+      
+      // 画像通り、一番上の行の一部を異名同音（Db, Eb）で表記
+      if (row === 7) {
+        if (pitchClass === 1) label = 'Db';
+        if (pitchClass === 3) label = 'Eb';
+      }
+
+      const key = document.createElement('div');
+      key.className = 'key';
+      key.textContent = label;
+
+      // 画像に基づいた色分け
+      if ([0, 2, 4, 7, 9].includes(pitchClass)) {
+        key.style.backgroundColor = '#ffffff'; // 白鍵 (C, D, E, G, A)
+      } else if ([5, 11].includes(pitchClass)) {
+        key.style.backgroundColor = '#7dfa9e'; // F, B (薄い緑)
+      } else {
+        key.style.backgroundColor = '#5eba55'; // 黒鍵/派生音 (濃い緑)
+      }
+
+      // マウス操作のイベント
+      key.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // 左クリックのみ反応
+        playNote(midiNote);
+        key.classList.add('active');
+      });
+      key.addEventListener('mouseup', () => {
+        stopNote(midiNote);
+        key.classList.remove('active');
+      });
+      key.addEventListener('mouseleave', () => {
+        stopNote(midiNote);
+        key.classList.remove('active');
+      });
+
+      // スマートフォン等のタッチ操作のイベント
+      key.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // スクロールなどを防止
+        playNote(midiNote);
+        key.classList.add('active');
+      }, { passive: false });
+      key.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        stopNote(midiNote);
+        key.classList.remove('active');
+      }, { passive: false });
+
+      keyboard.appendChild(key);
+    }
+  }
+</script>
+
+</body>
+</html>
