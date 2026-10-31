@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<title>文字モーフィング (最適輸送の流れで距離場を変形)</title>
+<style>
+  body { margin: 0; background: #000; color: #ccc; font: 14px sans-serif; }
+  #bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px; width: 1280px; max-width: 100%; box-sizing: border-box; }
+  #bar label { display: flex; gap: 6px; align-items: center; }
+  #time { flex: 1; min-width: 200px; }
+  canvas { display: block; max-width: 100%; height: auto; }
+  #texts { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; padding: 0 8px 8px; }
+  #texts label { display: flex; flex-direction: column; gap: 4px; }
+  textarea { width: 12em; height: 5.6em; background: #111; color: #eee; border: 1px solid #444; font: 16px/1.3 monospace; resize: both; }
+</style>
+
+<div id="bar">
+  <select id="set"></select>
+  <button id="play">▶ 自動再生</button>
+  <input type="range" id="time" min="0" max="1" step="0.001" value="0">
+  <span id="status"></span>
+</div>
+<div id="texts">
+  <label>元の文字(最大 4 行 × 8 文字)<textarea id="textA" spellcheck="false"></textarea></label>
+  <label>先の文字(同じ並びで対応)<textarea id="textB" spellcheck="false"></textarea></label>
+  <button id="apply">適用</button>
+  <span style="flex-basis:100%;height:0"></span>
+  <label style="flex-direction:row;align-items:center;gap:8px">動画
+    <select id="mode"><option value="once">元→先</option><option value="pingpong">元→先→元</option></select>
+    <button id="rec">MP4 を保存</button>
+  </label>
+</div>
+<canvas id="canvas1" width="1280" height="720"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.js"></script>
+<script>
+"use strict";
+const canvas = document.getElementById("canvas1");
+const ctx = canvas.getContext("2d");
+const slider = document.getElementById("time");
+const sel = document.getElementById("set");
+const textA = document.getElementById("textA"), textB = document.getElementById("textB"), applyBtn = document.getElementById("apply");
+const playBtn = document.getElementById("play");
+const modeEl = document.getElementById("mode"), recBtn = document.getElementById("rec");
+const statusEl = document.getElementById("status");
+
+// ---------- 設定 ----------
+const W = 1280, H = 720, CELL = 160, COLS = 8, ROWS = 4;
+const S = 240;               // 文字を読み取る作業キャンバスの一辺(G の整数倍)
+const FONT_SIZE = 150, BASELINE = 173, FONT_WEIGHT = "bold";
+const G = 120;               // 距離場(字形)の解像度
+const K = G / S;
+const C = 60, CF = G / C;    // 「どこがどの粒に由来するか」を表す逆写像の解像度(なめらかなので粗くてよい)
+const N = 700;               // インク粒の数(動きを決めるためだけに使う)
+const SOFT = 1.8;            // 逆写像を平均する半径(C 格子の画素単位)。大きいほどなめらか・にじむ
+const SMOOTH = 4;            // 輸送の動きをならす半径(G の画素単位)
+const TRANS = 0.5;           // 「元から進む経路」と「先から戻る経路」を入れ替える時間幅(中央 t=0.5 を軸に対称。1 で全区間)
+const BIG = 30;              // 粒が一つもない場所の距離
+const FONT_STACK = `"Noto Sans Devanagari","Noto Sans Bengali","Noto Sans Phoenician","Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif`;
+
+const SETS = {
+  "デーヴァナーガリー → ベンガル": [
+`कखगघङचछज
+झञटठडढणत
+थदधनपफबभ
+मयरलवशषस`,
+`কখগঘঙচছজ
+ঝঞটঠডঢণত
+থদধনপফবভ
+মযরলশষসহ`],
+  "ひらがな → カタカナ": [
+`あいうえおかきく
+けこさしすせそた
+ちつてとなにぬね
+のはひふへほまみ`,
+`アイウエオカキク
+ケコサシスセソタ
+チツテトナニヌネ
+ノハヒフヘホマミ`],
+  "フェニキア → ギリシャ": [
+`𐤀𐤁𐤂𐤃𐤄𐤅𐤆𐤇
+𐤈𐤉𐤊𐤋𐤌𐤍𐤎𐤏
+𐤐𐤑𐤒𐤓𐤔𐤕𐤅・
+・・・・・・・・`,
+`ABΓΔEϜΓH
+ΘIKΛMNΞO
+ΠϺϘPΣTYΦ
+ΧΨΩ・・・・・`],
+  "小文字 → 大文字": [
+`abcdefgh
+ijklmnop
+qrstuvwx
+yz・・・・・・`,
+`ABCDEFGH
+IJKLMNOP
+QRSTUVWX
+YZ・・・・・・`],
+};
+
+// ---------- 1. 文字 → インク粒 + 符号付き距離場 ----------
+// 粒は Lloyd 法で字形に均等に置く(動きを決める用)。距離場は輪郭を描く用。
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function lloyd(px, py, n, M, iters, rnd) {
+  const sx = new Float64Array(M), sy = new Float64Array(M);
+  if (n === 0) {                                                      // 空白グリフ(フォント未対応など): 質量 0 なので位置は何でもよいが、対応付けが詰まらないよう散らす
+    for (let k = 0; k < M; k++) { sx[k] = S / 2 + (rnd() - 0.5) * 40; sy[k] = S / 2 + (rnd() - 0.5) * 40; }
+    return [sx, sy];
+  }
+  const reseed = k => {
+    const j = (rnd() * n) | 0;
+    sx[k] = px[j] + (rnd() - 0.5); sy[k] = py[j] + (rnd() - 0.5);
+  };
+  for (let k = 0; k < M; k++) reseed(k);
+
+  const cs = Math.max(2, Math.sqrt(n / M) * 1.5);       // バケットの一辺
+  const bw = Math.ceil(S / cs) + 2;
+  const head = new Int32Array(bw * bw), next = new Int32Array(M);
+  const ax = new Float64Array(M), ay = new Float64Array(M), cnt = new Int32Array(M);
+
+  for (let it = 0; it < iters; it++) {
+    head.fill(-1);
+    for (let k = 0; k < M; k++) {
+      const b = ((sy[k] / cs) | 0) * bw + ((sx[k] / cs) | 0);
+      next[k] = head[b]; head[b] = k;
+    }
+    ax.fill(0); ay.fill(0); cnt.fill(0);
+    for (let p = 0; p < n; p++) {
+      const x = px[p], y = py[p];
+      const bx = (x / cs) | 0, by = (y / cs) | 0;
+      let best = Infinity, bk = -1;
+      for (let r = 0; r < bw; r++) {
+        for (let dy = -r; dy <= r; dy++) {
+          const cy = by + dy; if (cy < 0 || cy >= bw) continue;
+          const step = (dy === -r || dy === r) ? 1 : 2 * r;   // 上下の辺は全部、それ以外は左右の端だけ
+          for (let dx = -r; dx <= r; dx += step || 1) {
+            const cx = bx + dx; if (cx < 0 || cx >= bw) continue;
+            for (let k = head[cy * bw + cx]; k >= 0; k = next[k]) {
+              const ddx = x - sx[k], ddy = y - sy[k], d = ddx * ddx + ddy * ddy;
+              if (d < best) { best = d; bk = k; }
+            }
+          }
+        }
+        if (best <= (r * cs) * (r * cs)) break;   // これより外のバケットに、もっと近い粒はない
+      }
+      ax[bk] += x; ay[bk] += y; cnt[bk]++;
+    }
+    for (let k = 0; k < M; k++) {
+      if (cnt[k] > 0) { sx[k] = ax[k] / cnt[k]; sy[k] = ay[k] / cnt[k]; } else reseed(k);
+    }
+  }
+  return [sx, sy];
+}
+
+
+const INF = 1e20;
+function edt1d(f, n, d, v, z) {
+  let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+  for (let q = 1; q < n; q++) {
+    let s;
+    for (;;) {
+      s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+      if (s <= z[k] && k > 0) k--; else break;
+    }
+    k++; v[k] = q; z[k] = s; z[k + 1] = INF;
+  }
+  k = 0;
+  for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; d[q] = (q - v[k]) * (q - v[k]) + f[v[k]]; }
+}
+function edt(mask, w, h, target) {            // mask[i] === target の画素までの距離^2
+  const g = new Float64Array(w * h);
+  for (let i = 0; i < g.length; i++) g[i] = mask[i] === target ? 0 : INF;
+  const m = Math.max(w, h);
+  const f = new Float64Array(m), d = new Float64Array(m), v = new Int32Array(m), z = new Float64Array(m + 1);
+  for (let x = 0; x < w; x++) { for (let y = 0; y < h; y++) f[y] = g[y * w + x]; edt1d(f, h, d, v, z); for (let y = 0; y < h; y++) g[y * w + x] = d[y]; }
+  for (let y = 0; y < h; y++) { for (let x = 0; x < w; x++) f[x] = g[y * w + x]; edt1d(f, w, d, v, z); for (let x = 0; x < w; x++) g[y * w + x] = d[x]; }
+  return g;
+}
+
+const glyphCache = new Map();
+function getGlyph(ch) {
+  if (!glyphCache.has(ch)) glyphCache.set(ch, buildGlyph(ch));
+  return glyphCache.get(ch);
+}
+
+function buildGlyph(ch) {
+  const off = document.createElement("canvas");
+  off.width = off.height = S;
+  const c = off.getContext("2d", { willReadFrequently: true });
+  c.font = `${FONT_WEIGHT} ${FONT_SIZE}px ${FONT_STACK}`;
+  c.textAlign = "center";
+  c.fillStyle = "#000";
+
+  // 外接矩形の中心が作業キャンバスの中心に来るよう描く(字ごとの位置ズレを消す)
+  c.fillText(ch, S / 2, BASELINE);
+  let d = c.getImageData(0, 0, S, S).data;
+  let minX = S, maxX = -1, minY = S, maxY = -1;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    if (d[(y * S + x) * 4 + 3] >= 128) {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX >= 0) {
+    c.clearRect(0, 0, S, S);
+    c.fillText(ch, S / 2 + (S / 2 - (minX + maxX + 1) / 2), BASELINE + (S / 2 - (minY + maxY + 1) / 2));
+    d = c.getImageData(0, 0, S, S).data;
+  }
+
+  const mask = new Uint8Array(S * S), xs = [], ys = [];
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    if (d[(y * S + x) * 4 + 3] >= 128) { mask[y * S + x] = 1; xs.push(x + 0.5); ys.push(y + 0.5); }
+  }
+  const n = xs.length;
+
+  // 符号付き距離場(内側が負)。G の解像度に落とし、単位も G の画素にそろえる
+  const sdf = new Float32Array(G * G);
+  if (n === 0) sdf.fill(BIG);                 // 空白グリフ
+  else {
+    const din = edt(mask, S, S, 1), dout = edt(mask, S, S, 0), f = S / G;
+    const sS = new Float32Array(S * S);
+    for (let i = 0; i < sS.length; i++) sS[i] = Math.sqrt(din[i]) - Math.sqrt(dout[i]);
+    for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+      let s = 0;
+      for (let j = 0; j < f; j++) for (let i = 0; i < f; i++) s += sS[(y * f + j) * S + x * f + i];
+      sdf[y * G + x] = s / (f * f) * K;
+    }
+  }
+
+  const [sx, sy] = lloyd(Float32Array.from(xs), Float32Array.from(ys), n, N, 12, mulberry32((ch.codePointAt(0) || 0) * 2654435761));
+  for (let k = 0; k < N; k++) { sx[k] *= K; sy[k] *= K; }
+  return { sx, sy, sdf, area: n * K * K };
+}
+
+// ---------- 2. 最適輸送の対応付け(オークション法 + ε-scaling) ----------
+// A の粒 i を B の粒 assign[i] に動かす。移動距離^2 の総和が最小(= 2-Wasserstein の最適輸送)。
+// 2点ずつの入れ替えでは届かない「全体で最適」な対応が得られ、移動線は交差しない。
+function auction(ax, ay, bx, by) {
+  const n = ax.length;
+  const price = new Float64Array(n);
+  const owner = new Int32Array(n), assign = new Int32Array(n), stack = new Int32Array(n);
+  const EPS_END = 0.02;
+  let eps = 400;
+  for (;;) {
+    owner.fill(-1); assign.fill(-1);
+    let sp = 0;
+    for (let i = n - 1; i >= 0; i--) stack[sp++] = i;
+    while (sp > 0) {
+      const i = stack[--sp];
+      const x = ax[i], y = ay[i];
+      let best = -Infinity, second = -Infinity, bj = -1;
+      for (let j = 0; j < n; j++) {
+        const dx = x - bx[j], dy = y - by[j];
+        const v = -(dx * dx + dy * dy) - price[j];
+        if (v > best) { second = best; best = v; bj = j; }
+        else if (v > second) second = v;
+      }
+      price[bj] += (second === -Infinity ? 0 : best - second) + eps;
+      const prev = owner[bj];
+      if (prev >= 0) { assign[prev] = -1; stack[sp++] = prev; }
+      owner[bj] = i; assign[i] = bj;
+    }
+    if (eps <= EPS_END) break;
+    eps = Math.max(eps / 6, EPS_END);
+  }
+  return assign;
+}
+
+const pairCache = new Map();
+
+function getPair(a, b) {
+  const key = a + "|" + b;
+  if (pairCache.has(key)) return pairCache.get(key);
+  const A = getGlyph(a), B = getGlyph(b);
+  let Bx = B.sx, By = B.sy;
+  if (a !== b) {
+    const perm = auction(A.sx, A.sy, B.sx, B.sy);
+    Bx = new Float64Array(N); By = new Float64Array(N);
+    for (let i = 0; i < N; i++) { Bx[i] = B.sx[perm[i]]; By[i] = B.sy[perm[i]]; }
+  }
+  // 動き。変位 d = B−A を、元側の隣接関係(A の位置)と先側の隣接関係(B の位置)の両方で平均してならし、その平均を D とする。
+  // 残り C = d − D(粒ごとの細かいずれ)は、中央を軸に対称な重み g(e) で足し込む。
+  //   e が小さい間:  p = A + e·D        … 元に固定した、なめらかな経路
+  //   e が大きい間:  p = B − (1−e)·D    … 先に固定した、なめらかな経路   (両端は A, B にぴったり一致)
+  const dX = new Float32Array(N), dY = new Float32Array(N);
+  for (let i = 0; i < N; i++) { dX[i] = Bx[i] - A.sx[i]; dY[i] = By[i] - A.sy[i]; }
+  const r2 = (3 * SMOOTH) ** 2, inv = -1 / (2 * SMOOTH * SMOOTH);
+  const smooth = (Px, Py) => {
+    const ox = new Float32Array(N), oy = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      let sw = 0, sx = 0, sy = 0;
+      for (let j = 0; j < N; j++) {
+        const dx = Px[j] - Px[i], dy = Py[j] - Py[i], q = dx * dx + dy * dy;
+        if (q > r2) continue;
+        const w = Math.exp(q * inv);
+        sw += w; sx += w * dX[j]; sy += w * dY[j];
+      }
+      ox[i] = sx / sw; oy[i] = sy / sw;
+    }
+    return [ox, oy];
+  };
+  const [DAx, DAy] = smooth(A.sx, A.sy), [DBx, DBy] = smooth(Bx, By);
+  const Dx = new Float32Array(N), Dy = new Float32Array(N), Cx = new Float32Array(N), Cy = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    Dx[i] = (DAx[i] + DBx[i]) / 2; Dy[i] = (DAy[i] + DBy[i]) / 2;
+    Cx[i] = dX[i] - Dx[i]; Cy[i] = dY[i] - Dy[i];
+  }
+  // 描画範囲(粗い格子の画素単位)
+  let mnx = G, mny = G, mxx = 0, mxy = 0;
+  for (let i = 0; i < N; i++) {
+    mnx = Math.min(mnx, A.sx[i], Bx[i]); mxx = Math.max(mxx, A.sx[i], Bx[i]);
+    mny = Math.min(mny, A.sy[i], By[i]); mxy = Math.max(mxy, A.sy[i], By[i]);
+  }
+  const cb0 = [Math.floor(mnx / CF), Math.floor(mny / CF), Math.ceil(mxx / CF), Math.ceil(mxy / CF)];   // 粒の外接矩形(C 格子)
+  const pair = { Ax: A.sx, Ay: A.sy, Bx, By, Dx, Dy, Cx, Cy, sdfA: A.sdf, sdfB: B.sdf, areaA: A.area, areaB: B.area, cb0 };
+  pairCache.set(key, pair);
+  return pair;
+}
+
+// ---------- 3. 逆写像(出力のどこが A/B のどこに由来するか)と距離場の引き戻し ----------
+// 粒 i は時刻 e に p_i(e) にいて、A の a_i、B の b_i に由来する。
+// 出力の各点で、近くの粒の a_i, b_i, p_i をガウス重みで平均すれば、なめらかな逆写像が得られる。
+//   S_A(x) = SDF_A(a(x)) + |x − p(x)|   … 粒の雲の外側では、雲からの距離を足して距離場を延長する
+// 粒を点のままではなく「写像」として使うので、輪郭は距離場の等値線(なめらか)になる。
+const NP = 7;                                 // 重み, a(2), b(2), p(2)
+const PL = new Float32Array(NP * C * C), TP = new Float32Array(C * C);
+const SF = new Float32Array(C * C);
+const KWC = new Float32Array(2 * Math.ceil(3 * SOFT) + 1);
+let RC = 0;
+function setKernel(sigma) {
+  RC = Math.ceil(sigma * 3);
+  let s = 0;
+  for (let k = -RC; k <= RC; k++) s += (KWC[k + RC] = Math.exp(-(k * k) / (2 * sigma * sigma)));
+  for (let k = -RC; k <= RC; k++) KWC[k + RC] /= s;
+}
+
+function blurPlane(f, off, x0, y0, x1, y1) {   // 分離型ガウシアン。タップを外側、画素を内側にして連続メモリを走る
+  for (let y = y0; y < y1; y++) {
+    const row = off + y * C, trow = y * C;
+    for (let x = x0; x < x1; x++) TP[trow + x] = 0;
+    for (let k = -RC; k <= RC; k++) {
+      const w = KWC[k + RC], xa = Math.max(x0, x0 - k), xb = Math.min(x1, x1 - k);
+      for (let x = xa; x < xb; x++) TP[trow + x] += f[row + x + k] * w;
+    }
+  }
+  for (let y = y0; y < y1; y++) {
+    const row = off + y * C;
+    for (let x = x0; x < x1; x++) f[row + x] = 0;
+    const k0 = Math.max(-RC, y0 - y), k1 = Math.min(RC, y1 - 1 - y);
+    for (let k = k0; k <= k1; k++) {
+      const w = KWC[k + RC], src = (y + k) * C;
+      for (let x = x0; x < x1; x++) f[row + x] += TP[src + x] * w;
+    }
+  }
+}
+
+function sdfAt(f, x, y) {                     // G 格子上の距離場を双一次で引く(x, y は G の座標)
+  let u = x - 0.5, v = y - 0.5;
+  u = u < 0 ? 0 : u > G - 1.001 ? G - 1.001 : u;
+  v = v < 0 ? 0 : v > G - 1.001 ? G - 1.001 : v;
+  const i = u | 0, j = v | 0, fx = u - i, fy = v - j, o = j * G + i;
+  return (f[o] * (1 - fx) + f[o + 1] * fx) * (1 - fy) + (f[o + G] * (1 - fx) + f[o + G + 1] * fx) * fy;
+}
+
+const CHV = new Float64Array(NP);
+function computeField(p, e, cb) {
+  PL.fill(0);
+  const CC = C * C, [x0, y0, x1, y1] = cb;
+  const u = Math.min(1, Math.max(0, (e - 0.5) / TRANS + 0.5)), s = u * u * (3 - 2 * u);   // g(e): g(e) + g(1−e) = 1
+  const { Ax, Ay, Bx, By, Dx, Dy, Cx, Cy } = p;
+  for (let i = 0; i < N; i++) {
+    const px = Ax[i] + e * Dx[i] + s * Cx[i], py = Ay[i] + e * Dy[i] + s * Cy[i];
+    const u = px / CF - 0.5, v = py / CF - 0.5, ix = Math.floor(u), iy = Math.floor(v);
+    if (ix < x0 || iy < y0 || ix >= x1 - 1 || iy >= y1 - 1) continue;
+    const fx = u - ix, fy = v - iy, o = iy * C + ix;
+    const w0 = (1 - fx) * (1 - fy), w1 = fx * (1 - fy), w2 = (1 - fx) * fy, w3 = fx * fy;
+    CHV[0] = 1; CHV[1] = Ax[i]; CHV[2] = Ay[i]; CHV[3] = Bx[i]; CHV[4] = By[i]; CHV[5] = px; CHV[6] = py;
+    for (let c = 0; c < NP; c++) {
+      const q = c * CC + o, val = CHV[c];
+      PL[q] += w0 * val; PL[q + 1] += w1 * val; PL[q + C] += w2 * val; PL[q + C + 1] += w3 * val;
+    }
+  }
+  for (let c = 0; c < NP; c++) blurPlane(PL, c * CC, x0, y0, x1, y1);
+
+  SF.fill(BIG);
+  const a = 1 - e;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const o = y * C + x, w = PL[o];
+    if (w < 1e-4) continue;
+    const iw = 1 / w;
+    const gx = (x + 0.5) * CF, gy = (y + 0.5) * CF;
+    const rx = gx - PL[5 * CC + o] * iw, ry = gy - PL[6 * CC + o] * iw, r = Math.sqrt(rx * rx + ry * ry);
+    const sa = sdfAt(p.sdfA, PL[CC + o] * iw, PL[2 * CC + o] * iw) + r;
+    const sb = sdfAt(p.sdfB, PL[3 * CC + o] * iw, PL[4 * CC + o] * iw) + r;
+    SF[o] = a * sa + e * sb;
+  }
+}
+
+setKernel(SOFT);
+
+// ---------- 4. 描画 ----------
+const HB = 480, HLO = -12, HHI = 12;
+const hist = new Int32Array(HB);
+// 面積が target(C 格子の画素数)になる閾値(距離場なので 0 付近。インクの量を保存する)
+function findThreshold(f, target, cb) {
+  hist.fill(0);
+  for (let y = cb[1]; y < cb[3]; y++) for (let x = cb[0]; x < cb[2]; x++) {
+    const v = f[y * C + x];
+    hist[v <= HLO ? 0 : v >= HHI ? HB - 1 : ((v - HLO) / (HHI - HLO) * HB) | 0]++;
+  }
+  let acc = 0;
+  for (let b = 0; b < HB; b++) {
+    acc += hist[b];
+    if (acc >= target) return Math.max(-3, Math.min(3, HLO + (b + 0.5) / HB * (HHI - HLO)));
+  }
+  return 3;
+}
+
+const IDX = new Int32Array(CELL), FR = new Float32Array(CELL);
+for (let q = 0; q < CELL; q++) {
+  const u = (q + 0.5) * C / CELL - 0.5;
+  let i = Math.floor(u); i = Math.max(0, Math.min(C - 2, i));
+  IDX[q] = i; FR[q] = Math.max(0, Math.min(1, u - i));
+}
+const img = ctx.createImageData(W, H);
+const buf = new Uint32Array(img.data.buffer);
+
+// 距離場を表示解像度に双一次で引き伸ばし、等値線 f = thr をアンチエイリアス付きで塗る(f < thr が内側)
+function shade(f, thr, ox, oy, cb) {
+  const sc = C / CELL;
+  const p0 = Math.max(0, Math.floor(cb[0] / sc) - 1), p1 = Math.min(CELL, Math.ceil(cb[2] / sc) + 1);
+  const q0 = Math.max(0, Math.floor(cb[1] / sc) - 1), q1 = Math.min(CELL, Math.ceil(cb[3] / sc) + 1);
+  const gsc = sc;                              // C 格子の画素あたり → 表示画素あたり
+  for (let py = q0; py < q1; py++) {
+    const iy = IDX[py], fy = FR[py], r0 = iy * C, r1 = r0 + C, out = (oy + py) * W + ox;
+    for (let px = p0; px < p1; px++) {
+      const ix = IDX[px], fx = FR[px];
+      const a = f[r0 + ix], b = f[r0 + ix + 1], c = f[r1 + ix], d = f[r1 + ix + 1];
+      const lo = a < b ? (a < c ? (a < d ? a : d) : (c < d ? c : d)) : (b < c ? (b < d ? b : d) : (c < d ? c : d));
+      if (lo > thr + 3) continue;
+      const hi = a > b ? (a > c ? (a > d ? a : d) : (c > d ? c : d)) : (b > c ? (b > d ? b : d) : (c > d ? c : d));
+      let g;
+      if (hi < thr - 3) g = 255;
+      else {
+        const v = (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+        const gx = ((b - a) * (1 - fy) + (d - c) * fy) * gsc;
+        const gy = ((c - a) * (1 - fx) + (d - b) * fx) * gsc;
+        const cv = (thr - v) / (Math.sqrt(gx * gx + gy * gy) + 1e-6) + 0.5;
+        if (cv <= 0) continue;
+        g = cv >= 1 ? 255 : (cv * 255) | 0;
+      }
+      buf[out + px] = 0xff000000 | (g << 16) | (g << 8) | g;
+    }
+  }
+}
+
+let cells = [];
+
+function draw() {
+  const e = parseFloat(slider.value);
+  buf.fill(0xff000000);
+  for (const cell of cells) {
+    const area = (1 - e) * cell.areaA + e * cell.areaB;
+    if (!(area > 0)) continue;
+    const m = RC + 2, b0 = cell.cb0;
+    const cb = [Math.max(0, b0[0] - m), Math.max(0, b0[1] - m), Math.min(C, b0[2] + m), Math.min(C, b0[3] + m)];
+    computeField(cell, e, cb);
+    shade(SF, findThreshold(SF, area / (CF * CF), cb), cell.col * CELL, cell.row * CELL, cb);
+  }
+  ctx.putImageData(img, 0, 0);
+
+  ctx.strokeStyle = "#333";
+  ctx.beginPath();
+  for (let i = 1; i < COLS; i++) { ctx.moveTo(i * CELL + 0.5, 0); ctx.lineTo(i * CELL + 0.5, ROWS * CELL); }
+  for (let i = 0; i <= ROWS; i++) { ctx.moveTo(0, i * CELL + 0.5); ctx.lineTo(COLS * CELL, i * CELL + 0.5); }
+  ctx.stroke();
+}
+
+// ---------- UI ----------
+// 入力欄 → ROWS×COLS の文字の表。足りない所は空白(何も描かない)にする。サロゲートペアは Array.from で1文字として扱う
+function parseGrid(text) {
+  const lines = text.replace(/\r/g, "").split("\n");
+  return Array.from({ length: ROWS }, (_, r) => {
+    const chars = Array.from(lines[r] || "").slice(0, COLS);
+    while (chars.length < COLS) chars.push(" ");
+    return chars.map(c => (c.trim() === "" ? " " : c));
+  });
+}
+
+function* buildSet() {                           // 1セルずつ作って進捗を yield(画面が固まらないように)
+  const from = parseGrid(textA.value), to = parseGrid(textB.value);
+  const out = [];
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      out.push({ row, col, ...getPair(from[row][col], to[row][col]) });
+      yield out.length;
+    }
+  }
+  cells = out;
+}
+
+for (const name of Object.keys(SETS)) sel.add(new Option(name, name));
+
+// ---------- MP4 書き出し ----------
+// 1コマずつ描画 → WebCodecs でエンコード → mp4-muxer で MP4 に包む。リアルタイム録画ではないので、重くてもコマ落ちしない。
+const FPS = 30, MORPH_SEC = 4, HOLD_SEC = 0.5;
+const ease = u => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
+
+function timeline(pingpong) {                    // 各コマの t(0=元, 1=先)
+  const segs = [["hold", 0], ["morph", 1], ["hold", 1]];
+  if (pingpong) segs.push(["morph", 0], ["hold", 0]);
+  const out = [];
+  for (const [kind, v] of segs) {
+    const n = Math.round((kind === "hold" ? HOLD_SEC : MORPH_SEC) * FPS);
+    for (let i = 0; i < n; i++) out.push(kind === "hold" ? v : (v === 1 ? ease((i + 1) / n) : 1 - ease((i + 1) / n)));
+  }
+  return out;
+}
+
+async function pickCodec() {                     // 使える最初のコーデック(H.264 → VP9 → AV1)
+  for (const [mux, str] of [["avc", "avc1.640028"], ["vp9", "vp09.00.40.08"], ["av1", "av01.0.08M.08"]]) {
+    try {
+      const r = await VideoEncoder.isConfigSupported({ codec: str, width: W, height: H, bitrate: 8e6, framerate: FPS });
+      if (r.supported) return { mux, str };
+    } catch (e) {}
+  }
+  return null;
+}
+
+async function exportMP4() {
+  if (!cells.length) { statusEl.textContent = "先に計算が終わるまでお待ちください"; return; }
+  if (typeof VideoEncoder === "undefined" || typeof Mp4Muxer === "undefined") {
+    alert("このブラウザでは MP4 書き出しに対応していません(WebCodecs が必要です)。最新の Chrome / Edge をお使いください。\n(mp4-muxer の読み込みにはネット接続も必要です)");
+    return;
+  }
+  const codec = await pickCodec();
+  if (!codec) { alert("このブラウザには、使える動画エンコーダ(H.264 / VP9 / AV1)がありません。"); return; }
+
+  playing = false; playBtn.textContent = "▶ 自動再生";
+  recBtn.disabled = applyBtn.disabled = sel.disabled = true;
+  const keep = slider.value;
+  try {
+    const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: codec.mux, width: W, height: H }, fastStart: "in-memory" });
+    let err = null;
+    const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { err = e; } });
+    enc.configure({ codec: codec.str, width: W, height: H, bitrate: 8e6, framerate: FPS });
+
+    const ts = timeline(modeEl.value === "pingpong");
+    for (let i = 0; i < ts.length; i++) {
+      if (err) throw err;
+      slider.value = ts[i]; draw();
+      const frame = new VideoFrame(canvas, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      enc.encode(frame, { keyFrame: i % FPS === 0 });
+      frame.close();
+      while (enc.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
+      if (i % 3 === 0) { statusEl.textContent = `動画を書き出し中… ${i + 1}/${ts.length}`; await new Promise(r => setTimeout(r, 0)); }
+    }
+    await enc.flush();
+    if (err) throw err;
+    muxer.finalize();
+    const url = URL.createObjectURL(new Blob([muxer.target.buffer], { type: "video/mp4" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "morph.mp4"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    statusEl.textContent = `保存しました(${ts.length} コマ / ${(ts.length / FPS).toFixed(1)} 秒 / ${codec.mux === "avc" ? "H.264" : codec.mux.toUpperCase()})`;
+  } catch (e) {
+    statusEl.textContent = "書き出しに失敗しました: " + (e && e.message || e);
+  } finally {
+    recBtn.disabled = applyBtn.disabled = sel.disabled = false;
+    slider.value = keep; draw();
+  }
+}
+recBtn.onclick = exportMP4;
+
+let job = 0;
+function start() {
+  const my = ++job, gen = buildSet();
+  const step = () => {
+    if (my !== job) return;
+    const t0 = performance.now();
+    for (;;) {
+      const r = gen.next();
+      if (r.done) { statusEl.textContent = ""; draw(); return; }
+      statusEl.textContent = `計算中… ${r.value}/${ROWS * COLS}`;
+      if (performance.now() - t0 > 80) break;
+    }
+    setTimeout(step, 0);
+  };
+  setTimeout(step, 20);
+}
+function loadPreset() { const [a, b] = SETS[sel.value]; textA.value = a; textB.value = b; start(); }
+sel.onchange = loadPreset;
+applyBtn.onclick = start;
+for (const el of [textA, textB]) el.addEventListener("keydown", ev => { if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); start(); } });
+slider.oninput = draw;
+
+let playing = false, t0 = 0;
+playBtn.onclick = () => {
+  playing = !playing;
+  playBtn.textContent = playing ? "■ 停止" : "▶ 自動再生";
+  if (playing) { t0 = performance.now(); requestAnimationFrame(loop); }
+};
+function loop(now) {
+  if (!playing) return;
+  slider.value = 0.5 - 0.5 * Math.cos(((now - t0) / 5000) * Math.PI * 2);   // 0→1→0 を往復
+  draw();
+  requestAnimationFrame(loop);
+}
+
+{ const [a, b] = SETS[sel.value]; textA.value = a; textB.value = b; }
+start();
+</script>
