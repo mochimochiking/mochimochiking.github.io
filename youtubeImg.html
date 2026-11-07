@@ -20,17 +20,23 @@
   }
   .app {
     display: flex;
-    gap: 16px;
+    gap: 0;
     padding: 16px;
     align-items: flex-start;
     min-height: 100vh;
   }
   .preview {
-    flex: 1 1 auto;
+    flex: 0 0 var(--preview-w, 60%);
     min-width: 0;
     position: sticky;
     top: 16px;
   }
+  /* プレビューとフォームの境界(ドラッグで幅を変える) */
+  .splitter { flex: 0 0 16px; align-self: stretch; cursor: ew-resize; position: relative; touch-action: none; }
+  .splitter::after { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; width: 4px; border-radius: 2px; background: #c9c9c9; }
+  .splitter:hover::after, .splitter:focus-visible::after, body.resizing .splitter::after { background: var(--accent); }
+  .splitter:focus { outline: none; }
+  body.resizing { cursor: ew-resize; user-select: none; }
   /* 透過部分が分かるように市松模様を敷く */
   .canvas-wrap {
     background:
@@ -57,8 +63,8 @@
   #status { margin-top: 8px; min-height: 1.5em; font-size: 13px; color: #b91c1c; white-space: pre-line; }
 
   form {
-    flex: 0 0 420px;
-    max-width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -83,15 +89,16 @@
   .drag { outline: 2px dashed var(--accent); outline-offset: 2px; background-color: #eef4ff; }
 
   @media (max-width: 1000px) {
-    .app { flex-direction: column; }
-    .preview { position: static; width: 100%; }
+    .app { flex-direction: column; gap: 16px; }
+    .preview { position: static; width: 100%; flex-basis: auto; }
+    .splitter { display: none; }
     form { flex-basis: auto; width: 100%; }
   }
 </style>
 </head>
 <body>
-<div class="app">
-  <div class="preview">
+<div class="app" id="app">
+  <div class="preview" id="preview">
     <div class="canvas-wrap"><canvas id="canvas1" width="1280" height="720"></canvas></div>
     <div class="pager">
       <button type="button" id="prev">前へ</button>
@@ -108,6 +115,8 @@
     <div id="status" role="status"></div>
   </div>
 
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0" title="ドラッグで幅を変更(ダブルクリックで元に戻す)"></div>
+
   <form name="form1" autocomplete="off">
     <fieldset>
       <legend>歌詞(全ページ分をまとめて入力)</legend>
@@ -123,6 +132,10 @@
         空の欄に貼り付けたときと、ファイルを読み込んだときは自動で反映します。
         それ以外は「歌詞欄の@設定を反映」を押すと、スライダー等がその値になります(@行は歌詞欄に残ります)。
         「設定を歌詞欄に書き出す」は、今の設定で@行を書き換えます。
+      </p>
+      <p class="hint">
+        途中に説明ページを挟むには、「:::説明」の行と「:::」の行で文章を囲みます。
+        空行は段落の区切りで、文中の改行は自動でつなげて折り返します。1ページに入りきらない分は、次の説明ページに続きます。
       </p>
     </fieldset>
 
@@ -170,6 +183,13 @@
           <option value="yes">yes</option>
           <option value="no" selected>no</option>
         </select></label>
+    </fieldset>
+
+    <fieldset data-modes="note">
+      <legend>説明ページ</legend>
+      <label>文字の大きさ
+        <span class="range"><input type="range" name="noteSize" min="24" max="52" step="2" value="38"><output></output></span></label>
+      <p class="hint">フォントは太字の游明朝です(お使いの環境に無いときは、代わりの明朝体で表示されます)。文字色・暗幕・背景は、ほかのページと共通です。</p>
     </fieldset>
 
     <fieldset data-modes="main4">
@@ -231,6 +251,7 @@ const SETTINGS = [
   ["全体の縦位置", "spacing"],
   ["歌詞の縦位置", "spacing2"],
   ["ルビの位置", "spacing4"],
+  ["説明サイズ", "noteSize"],
 ];
 const SETTING_BY_LABEL = new Map(SETTINGS);
 const DEPRECATED = new Set(["配置"]);          // 廃止した設定名(読み込んでも無視する)
@@ -432,30 +453,56 @@ function readOptions() {
     spacing:   Number(v("spacing")),
     spacing2:  Number(v("spacing2")),
     spacing4:  Number(v("spacing4")),
+    noteSize:  Number(v("noteSize")),
   };
 }
 
 /* ---------- 歌詞をページに分ける ---------- */
 // 空行で連を区切り、連の行数を3等分(原語/読み/和訳)。
 // 1ページは最大 MAX_ROWS 行で、超えた分は次のページへ(5行→4+1、6行→4+2)。
+// 「:::説明」と「:::」で囲んだ部分は説明ページ(自動で折り返し、入りきらなければ次のページへ)。
 // 先頭に必ずタイトルページ、末尾に必ず背景のみのページを置く。
-function buildPages(raw) {
+function buildPages(raw, o) {
   const warnings = [];
-  const stanzas = [];
+  const blocks = [];                            // { type: "stanza" | "note", lines }
   let cur = [];
+  let note = null;                              // 説明の囲みの中にいるときの行
+  const flush = () => {
+    if (cur.length) { blocks.push({ type: "stanza", lines: cur }); cur = []; }
+  };
+
   for (const line of raw.split(/\r?\n/)) {
-    if (parseSettingLine(line)) continue;        // @設定の行は歌詞に数えない
-    if (line.trim() === "") {
-      if (cur.length) { stanzas.push(cur); cur = []; }
+    if (parseSettingLine(line)) continue;       // @設定の行は歌詞に数えない
+    if (note) {
+      if (NOTE_CLOSE.test(line)) { blocks.push({ type: "note", lines: note }); note = null; }
+      else note.push(line);
+    } else if (NOTE_OPEN.test(line)) {
+      flush();
+      note = [];
+    } else if (NOTE_CLOSE.test(line)) {
+      warnings.push("対応する「:::説明」がない「:::」の行があります(無視します)");
+    } else if (line.trim() === "") {
+      flush();
     } else {
       cur.push(line);
     }
   }
-  if (cur.length) stanzas.push(cur);
+  if (note) {
+    warnings.push("「:::説明」が「:::」で閉じられていません(最後までを説明として扱います)");
+    blocks.push({ type: "note", lines: note });
+  }
+  flush();
 
   const pages = [{ kind: "title" }];
-  stanzas.forEach((lines, si) => {
-    const no = si + 1;
+  let stanzaNo = 0;
+  let noteNo = 0;
+  for (const blk of blocks) {
+    if (blk.type === "note") {
+      pages.push(...notePages(blk.lines, ++noteNo, o, warnings));
+      continue;
+    }
+    const lines = blk.lines;
+    const no = ++stanzaNo;
     if (lines.some((l) => l.startsWith("@"))) {
       warnings.push(`連${no}: 「@」で始まる行があります(未知の設定名は歌詞として扱われます)`);
     }
@@ -463,7 +510,7 @@ function buildPages(raw) {
       warnings.push(`連${no}: ${lines.length}行です。3の倍数にしてください(余りの行は無視します)`);
     }
     const n = Math.floor(lines.length / 3);
-    if (!n) return;
+    if (!n) continue;
     const parts = Math.ceil(n / MAX_ROWS);
     for (let k = 0; k < parts; k++) {
       const a = k * MAX_ROWS;
@@ -478,15 +525,126 @@ function buildPages(raw) {
         ja:    lines.slice(2 * n + a, 2 * n + b),
       });
     }
-  });
+  }
   pages.push({ kind: "bg" });
   return { pages, warnings };
+}
+
+/* ---------- 説明ページ ---------- */
+const NOTE_LH = 1.35;                           // 説明の行の高さ(文字サイズの倍率)
+const NOTE_X = 40;                              // 説明の左端
+const NOTE_W = W - 80;                          // 説明の幅(折り返しの基準)
+const NOTE_OPEN = /^[:：]{3}\s*説明\s*$/;        // 説明の始まりの行
+const NOTE_CLOSE = /^[:：]{3}\s*$/;              // 説明の終わりの行
+const NO_START = "、。，．）］｝〕〉》」』】！？・ー…‥ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ々!?.,;:)]}";   // 行頭に置かない文字
+const NO_END = "（［｛〔〈《「『【([{";            // 行末に置かない文字
+const noteFont = (size) => `bold ${size}px "游明朝", "Yu Mincho", "YuMincho", serif`;
+const measureCtx = document.createElement("canvas").getContext("2d");
+const isWide = (ch) => /[⺀-鿿豈-﫿＀-￯]/.test(ch);
+
+// 全角文字は1文字ずつ、それ以外(欧文など)は空白までを1語として切り分ける
+function tokenize(text) {
+  const tokens = [];
+  let word = "";
+  const flush = () => { if (word) { tokens.push(word); word = ""; } };
+  for (const ch of text) {
+    if (isWide(ch)) { flush(); tokens.push(ch); }
+    else if (ch === " " || ch === "\t") { word += " "; flush(); }
+    else word += ch;
+  }
+  flush();
+  return tokens;
+}
+
+// 幅 maxWidth に収まるように折り返す(禁則処理つき)。hang は句読点のぶら下げに許す余白(px)
+function wrapText(text, maxWidth, measure, hang) {
+  const lines = [];
+  let line = "";
+  const fits = (s) => measure(s.trimEnd()) <= maxWidth;
+  for (const tok of tokenize(text)) {
+    if (!line && !tok.trim()) continue;         // 行頭の空白は捨てる
+    if (fits(line + tok)) { line += tok; continue; }
+
+    // 行頭に置けない句読点などは、1文字分だけ行末にはみ出して置く(ぶら下げ)
+    if (line && tok.length === 1 && NO_START.includes(tok) && measure(line + tok) <= maxWidth + hang) {
+      line += tok;
+      continue;
+    }
+
+    if (line) {
+      let carry = "";                           // 行末に置けない始め括弧は、次の行へ送る
+      const t = line.trimEnd();
+      const last = t.slice(-1);
+      if (last && NO_END.includes(last)) { carry = last; line = t.slice(0, -1); }
+      if (line.trim()) lines.push(line.trimEnd());
+      line = carry;
+    }
+    if (fits(line + tok)) { line += tok; continue; }
+
+    for (const ch of tok) {                     // 1語が1行に収まらないときは、文字ごとに折り返す
+      if (line && !fits(line + ch)) { lines.push(line.trimEnd()); line = ""; }
+      line += ch;
+    }
+  }
+  if (line.trim()) lines.push(line.trimEnd());
+  return lines.length ? lines : [""];
+}
+
+// 段落内の改行はつなげる(日本語どうしはそのまま、欧文どうしは空白を1つ入れる)
+function joinLines(lines) {
+  let out = "";
+  for (const raw of lines) {
+    const l = raw.trim();
+    if (!l) continue;
+    if (out && !isWide(out.slice(-1)) && !isWide(l[0])) out += " ";
+    out += l;
+  }
+  return out;
+}
+
+// 説明1つ分の行を、ページに分ける(段落の間は1行あける)
+function notePages(lines, no, o, warnings) {
+  const paras = [];
+  let cur = [];
+  for (const l of lines) {
+    if (l.trim() === "") { if (cur.length) { paras.push(joinLines(cur)); cur = []; } }
+    else cur.push(l);
+  }
+  if (cur.length) paras.push(joinLines(cur));
+  if (!paras.length) {
+    warnings.push(`説明${no}: 中身が空です`);
+    return [];
+  }
+
+  measureCtx.font = noteFont(o.noteSize);
+  const measure = (s) => measureCtx.measureText(s).width;
+  const wrapped = paras.map((p) => wrapText(p, NOTE_W, measure, o.noteSize));
+  const maxLines = Math.max(1, Math.floor((H - 80) / (o.noteSize * NOTE_LH)));
+
+  const chunks = [];
+  let page = [];
+  const pushPage = () => { if (page.length) { chunks.push(page); page = []; } };
+  for (const para of wrapped) {
+    if (page.length && page.length + 1 + para.length > maxLines) pushPage();
+    if (page.length) page.push("");             // 段落の間は1行あける
+    if (para.length <= maxLines - page.length) {
+      page.push(...para);
+    } else {                                    // 1段落が1ページに収まらないときは、行で分ける
+      for (const l of para) {
+        if (page.length >= maxLines) pushPage();
+        page.push(l);
+      }
+    }
+  }
+  pushPage();
+  return chunks.map((ls, k) => ({ kind: "note", noteNo: no, part: k + 1, parts: chunks.length, lines: ls }));
 }
 
 function pageLabel(pg, i) {
   if (pg.kind === "title") return `${i}: タイトル`;
   if (pg.kind === "bg") return `${i}: 背景のみ(最後)`;
   const split = pg.parts > 1 ? `(${pg.part}/${pg.parts})` : "";
+  if (pg.kind === "note") return `${i}: 説明${pg.noteNo}${split} ${pg.lines.find((l) => l) ?? ""}`;
   const head = removeRuby(pg.text[0], false);   // 一行目は省略せず最後まで
   return `${i}: 連${pg.stanza}${split} ${head}`;
 }
@@ -726,6 +884,25 @@ function drawMain(ctx, o, pg) {
   ctx.globalAlpha = 1;
 }
 
+// 説明ページ: 太字の游明朝で、左寄せ・上下中央に描く(折り返しは buildPages で済んでいる)
+function drawNote(ctx, o, pg) {
+  const shadow = o.color === "black" ? "white" : "black";
+  const lh = o.noteSize * NOTE_LH;
+  const top = (H - pg.lines.length * lh) / 2;
+
+  ctx.font = noteFont(o.noteSize);
+  ctx.fillStyle = o.color;
+  ctx.shadowColor = shadow;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  for (const blur of [10, 2]) {                 // 歌詞と同じく、影ありと影なしで2回
+    ctx.shadowBlur = blur;
+    pg.lines.forEach((l, i) => {
+      if (l) ctx.fillText(l, NOTE_X, top + (i + 0.5) * lh);
+    });
+  }
+}
+
 // 1ページ分を、指定したcanvasのコンテキストに描く(画面表示にも書き出しにも使う)
 function renderPage(ctx, o, pg, bgImg, flagImg) {
   ctx.save();
@@ -733,6 +910,7 @@ function renderPage(ctx, o, pg, bgImg, flagImg) {
   drawDim(ctx, o);
   if (pg.kind === "title") drawTitle(ctx, o, flagImg);
   else if (pg.kind === "main4") drawMain(ctx, o, pg);
+  else if (pg.kind === "note") drawNote(ctx, o, pg);
   ctx.restore();
 }
 
@@ -757,10 +935,23 @@ function scheduleUpdate() {
   });
 }
 
+// 使うフォントを先に読み込む(説明の折り返しの計算にも使うので、描画より前に待つ)
+async function loadFonts(o) {
+  try {
+    await Promise.all([
+      document.fonts.load(`${o.fontSize}px "${o.font}"`),
+      document.fonts.load(noteFont(o.noteSize)),
+    ]);
+  } catch (_) {}
+}
+
 async function update() {
   const id = ++renderId;
   const o = readOptions();
-  const { pages, warnings } = buildPages($("lyr").value);
+  await loadFonts(o);
+  if (id !== renderId) return;
+
+  const { pages, warnings } = buildPages($("lyr").value, o);
   syncPageSelect(pages);
   const pg = pages[pageIndex];
   applyMode(pg.kind);
@@ -769,9 +960,6 @@ async function update() {
     loadImage(o.flg),
     pg.kind === "title" ? loadImage(o.kokki) : Promise.resolve(null),
   ]);
-
-  // フォント読み込み待ち(失敗しても描画は続行)
-  try { await document.fonts.load(`${o.fontSize}px "${o.font}"`); } catch (_) {}
 
   // 待っている間に新しい更新が走っていたら破棄
   if (id !== renderId) return;
@@ -948,7 +1136,7 @@ function makeZip(files) {
 }
 
 /* ---------- 全ページをまとめて書き出す ---------- */
-// ファイル名: 歌詞ページは 曲名_01.png から、背景のみは 曲名_00.png、タイトルは 曲名_thumb.png。
+// ファイル名: 歌詞ページと説明ページは 曲名_01.png からの連番、背景のみは 曲名_00.png、タイトルは 曲名_thumb.png。
 // ZIPには 曲名.txt(設定と歌詞)も入れる。
 async function exportZip() {
   const btn = document.getElementById("exportZip");
@@ -957,13 +1145,13 @@ async function exportZip() {
   btn.disabled = true;
   try {
     const o = readOptions();
-    const { pages } = buildPages($("lyr").value);
+    await loadFonts(o);
+    const { pages } = buildPages($("lyr").value, o);
     const [bgImg, flagImg] = await Promise.all([loadImage(o.flg), loadImage(o.kokki)]);
-    try { await document.fonts.load(`${o.fontSize}px "${o.font}"`); } catch (_) {}
 
     const base = songName();
-    const lyricCount = pages.filter((p) => p.kind === "main4").length;
-    const width = Math.max(2, String(lyricCount).length);
+    const numbered = pages.filter((p) => p.kind === "main4" || p.kind === "note").length;
+    const width = Math.max(2, String(numbered).length);
     const pad = (n) => String(n).padStart(width, "0");
 
     // 画面のcanvasは触らず、別のcanvasに描く
@@ -973,13 +1161,13 @@ async function exportZip() {
     const offCtx = off.getContext("2d");
 
     const files = [];
-    let lyricNo = 0;
+    let pageNo = 0;
     for (let i = 0; i < pages.length; i++) {
       btn.textContent = `書き出し中 ${i + 1} / ${pages.length}`;
       const pg = pages[i];
       const name = pg.kind === "title" ? `${base}_thumb.png`
                  : pg.kind === "bg"    ? `${base}_${pad(0)}.png`
-                 :                       `${base}_${pad(++lyricNo)}.png`;
+                 :                       `${base}_${pad(++pageNo)}.png`;
 
       renderPage(offCtx, o, pg, bgImg, flagImg);
       const blob = await new Promise((resolve) => off.toBlob(resolve, "image/png"));
@@ -1094,7 +1282,74 @@ for (const type of ["dragover", "drop"]) {
 
 document.getElementById("exportZip").addEventListener("click", exportZip);
 
+/* ---------- プレビューとフォームの境界(ドラッグで幅を変える) ---------- */
+// プレビューを狭めると、歌詞欄などのフォームが広くなる。書き出す画像は1280x720のまま。
+const appEl = document.getElementById("app");
+const previewEl = document.getElementById("preview");
+const splitter = document.getElementById("splitter");
+const SPLIT_W = 16;                             // 境界の幅
+const MIN_PREVIEW = 240;
+const MIN_FORM = 320;
+const DEFAULT_FORM = 420;
+const SPLIT_KEY = "lyricsImg.previewWidth";
+let previewW = null;
+let dragging = false;
+
+function setPreviewWidth(px) {
+  const inner = appEl.clientWidth - 32;         // 左右の余白16pxずつ
+  const max = Math.max(MIN_PREVIEW, inner - SPLIT_W - MIN_FORM);
+  previewW = Math.round(Math.min(Math.max(px, MIN_PREVIEW), max));
+  appEl.style.setProperty("--preview-w", previewW + "px");
+}
+
+function saveSplit(v) {
+  try {
+    if (v == null) localStorage.removeItem(SPLIT_KEY);
+    else localStorage.setItem(SPLIT_KEY, String(v));
+  } catch (_) {}
+}
+
+const defaultPreviewWidth = () => appEl.clientWidth - 32 - SPLIT_W - DEFAULT_FORM;
+
+function initPreviewWidth() {
+  let saved = null;
+  try { saved = Number(localStorage.getItem(SPLIT_KEY)) || null; } catch (_) {}
+  setPreviewWidth(saved ?? defaultPreviewWidth());
+}
+
+splitter.addEventListener("pointerdown", (e) => {
+  dragging = true;
+  splitter.setPointerCapture?.(e.pointerId);
+  document.body.classList.add("resizing");
+  e.preventDefault();
+});
+splitter.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  setPreviewWidth(e.clientX - previewEl.getBoundingClientRect().left - SPLIT_W / 2);
+});
+const endDrag = () => {
+  if (!dragging) return;
+  dragging = false;
+  document.body.classList.remove("resizing");
+  saveSplit(previewW);
+};
+splitter.addEventListener("pointerup", endDrag);
+splitter.addEventListener("pointercancel", endDrag);
+splitter.addEventListener("dblclick", () => {   // ダブルクリックで元の幅に戻す
+  saveSplit(null);
+  setPreviewWidth(defaultPreviewWidth());
+});
+splitter.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  e.preventDefault();
+  e.stopPropagation();                          // ページ送りの矢印キーとは別扱い
+  setPreviewWidth(previewW + (e.key === "ArrowLeft" ? -20 : 20));
+  saveSplit(previewW);
+});
+window.addEventListener("resize", () => { if (previewW != null) setPreviewWidth(previewW); });
+
 window.addEventListener("load", () => {
+  initPreviewWidth();
   syncOutputs();
   update();
 });
