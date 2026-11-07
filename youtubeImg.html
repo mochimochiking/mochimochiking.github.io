@@ -12,6 +12,7 @@
     --accent: #2563eb;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
   body {
     font: 15px/1.5 system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif;
     background: var(--bg);
@@ -38,8 +39,22 @@
     line-height: 0;
   }
   canvas { width: 100%; height: auto; display: block; }
-  [hidden] { display: none !important; }
-  #status { margin-top: 8px; min-height: 1.5em; font-size: 13px; color: #b91c1c; }
+
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pager, .tools { display: flex; gap: 8px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  .pager select { flex: 1; min-width: 0; font: inherit; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; }
+  button {
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.sub { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+  #status { margin-top: 8px; min-height: 1.5em; font-size: 13px; color: #b91c1c; white-space: pre-line; }
 
   form {
     flex: 0 0 420px;
@@ -56,10 +71,16 @@
   label { display: grid; grid-template-columns: 8.5em 1fr; align-items: center; gap: 8px; font-size: 14px; }
   label.inline { display: flex; gap: 6px; }
   label.stack { grid-template-columns: 1fr; }
+  .hint { font-size: 12px; color: #666; line-height: 1.5; }
   input[type="text"], select, textarea { width: 100%; font: inherit; padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; }
-  textarea { resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  textarea { resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 13px; white-space: pre; overflow: auto; }
   output { font-size: 12px; color: #666; min-width: 2.5em; text-align: right; }
   .range { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px; }
+
+  .urlbox { display: flex; gap: 4px; min-width: 0; }
+  .urlbox input { flex: 1; min-width: 0; }
+  button.mini { padding: 2px 8px; font-size: 12px; white-space: nowrap; }
+  .drag { outline: 2px dashed var(--accent); outline-offset: 2px; background-color: #eef4ff; }
 
   @media (max-width: 1000px) {
     .app { flex-direction: column; }
@@ -72,21 +93,46 @@
 <div class="app">
   <div class="preview">
     <div class="canvas-wrap"><canvas id="canvas1" width="1280" height="720"></canvas></div>
+    <div class="pager">
+      <button type="button" id="prev">前へ</button>
+      <select id="pageSel" aria-label="ページ"></select>
+      <button type="button" id="next">次へ</button>
+    </div>
+    <div class="tools">
+      <button type="button" id="exportZip">画像をまとめてダウンロード(ZIP)</button>
+      <button type="button" id="save" class="sub">設定付きテキストを保存</button>
+      <button type="button" id="load" class="sub">テキストを読み込む</button>
+      <input type="file" id="file" accept=".txt,text/plain" hidden>
+      <input type="file" id="imgFile" accept="image/*" hidden>
+    </div>
     <div id="status" role="status"></div>
   </div>
 
   <form name="form1" autocomplete="off">
     <fieldset>
+      <legend>歌詞(全ページ分をまとめて入力)</legend>
+      <textarea name="lyr" rows="14" spellcheck="false"></textarea>
+      <div class="row">
+        <button type="button" id="writeSettings" class="sub">設定を歌詞欄に書き出す</button>
+        <button type="button" id="applySettings" class="sub">歌詞欄の@設定を反映</button>
+      </div>
+      <p class="hint">
+        空行で「連」を区切ります。1つの連は、行数を3等分して 原語(ルビは (単語|意味))・読み・和訳 の順に並べます。
+        1ページは最大4行で、超えた分は次のページに続きます。<br>
+        「@設定名 値」の行は歌詞として数えず、普段は無視します。
+        空の欄に貼り付けたときと、ファイルを読み込んだときは自動で反映します。
+        それ以外は「歌詞欄の@設定を反映」を押すと、スライダー等がその値になります(@行は歌詞欄に残ります)。
+        「設定を歌詞欄に書き出す」は、今の設定で@行を書き換えます。
+      </p>
+    </fieldset>
+
+    <fieldset>
       <legend>共通</legend>
-      <label>状態
-        <select name="type">
-          <option value="title">タイトル</option>
-          <option value="main4" selected>メイン</option>
-          <option value="bg">背景のみ</option>
-        </select></label>
       <label>背景色<input type="text" name="bgColor" value="transparent"></label>
-      <label>背景画像URL<input type="text" name="flg" value="" placeholder="空欄なら背景画像なし"></label>
+      <label data-drop="flg">背景画像
+        <span class="urlbox"><input type="text" name="flg" value="" placeholder="URL(空欄なら背景画像なし)"><button type="button" class="mini" data-pick="flg">ファイル</button><button type="button" class="mini sub" data-clear="flg" title="空にする">×</button></span></label>
       <label class="inline"><input type="checkbox" name="zoom" value="zoom" checked>背景を拡大(画面いっぱいに表示)</label>
+      <p class="hint">背景画像と国旗は、URLの代わりに「ファイル」ボタンかドラッグ&ドロップで手元の画像も使えます(プレビューに落とすと背景画像になります)。手元の画像は設定テキストには保存されません。</p>
       <label>文字色(暗幕は反対色)
         <select name="color">
           <option value="black">black</option>
@@ -103,7 +149,8 @@
 
     <fieldset data-modes="title">
       <legend>タイトル</legend>
-      <label>国旗URL<input type="text" name="kokki" value="" placeholder="空欄なら国旗なし"></label>
+      <label data-drop="kokki">国旗
+        <span class="urlbox"><input type="text" name="kokki" value="" placeholder="URL(空欄なら国旗なし)"><button type="button" class="mini" data-pick="kokki">ファイル</button><button type="button" class="mini sub" data-clear="kokki" title="空にする">×</button></span></label>
       <label>タイトル<input type="text" name="title" value=""></label>
       <label>タイトルの大きさ
         <span class="range"><input type="range" name="titleSize" min="40" max="320" step="5" value="160"><output></output></span></label>
@@ -112,42 +159,27 @@
       <label>日本語タイトル<input type="text" name="titleJa" value=""></label>
     </fieldset>
 
-    <fieldset data-modes="main4">
-      <legend>歌詞</legend>
-      <label class="stack">歌詞(4行で1画面。ルビは「(漢字|かな)」形式)
-        <textarea name="lyr" rows="4"></textarea></label>
-      <label class="stack">歌詞(2段目・原語など)
-        <textarea name="lyr2" rows="4"></textarea></label>
-      <label class="stack">和訳
-        <textarea name="lyrJa" rows="4"></textarea></label>
-    </fieldset>
-
     <fieldset data-modes="title main4">
       <legend>文字</legend>
       <label>フォント<select name="font"></select></label>
+      <p class="hint">[RTL]が付いたフォントは、歌詞を右から左(右寄せ)で表示します。Calibri・Segoe UI・Times New Roman は、左から右用と[RTL]用の2つがあります。</p>
       <label>太さ
         <span class="range"><input type="range" name="isBold" min="100" max="900" step="100" value="400"><output></output></span></label>
       <label>イタリック
         <select name="italic">
-          <option value="italic">yes</option>
-          <option value="" selected>no</option>
+          <option value="yes">yes</option>
+          <option value="no" selected>no</option>
         </select></label>
     </fieldset>
 
     <fieldset data-modes="main4">
-      <legend>メイン用</legend>
+      <legend>歌詞ページ用</legend>
       <label>フォント2(2段目)
         <select name="font2">
           <option value="bold 35px BIZ UDPゴシック" selected>BIZ UDPゴシック</option>
           <option value="35px Noto Sans">Noto Sans</option>
           <option value="40px SimHei">SimHei</option>
           <option value="40px Times New Roman">Times New Roman</option>
-        </select></label>
-      <label>配置(LR)
-        <select name="LR">
-          <option value="right">right (右から左)</option>
-          <option value="left" selected>left</option>
-          <option value="under">under (ルビ下詰め)</option>
         </select></label>
       <label>リガチャ
         <select name="ligature">
@@ -174,18 +206,53 @@ const W = 1280;
 const H = 720;
 const JP_FONT = "HGP明朝E";
 const JA_SIZE = 45;                            // 和訳の文字サイズ
+const MAX_ROWS = 4;                            // 1ページの最大行数
 const ROW_OFFSET = [12, 8, 4, 0];              // 行ごとの微調整
 const RUBY_RE = /(?<=\().*?\|.*?(?=\))/g;      // (漢字|かな) の中身
 
-// "値|表示名" (表示名を省略すると値と同じ)
-const FONT_LIST = `
-Nunito
+// @行の設定名 → フォーム項目名(保存時もこの順に出力)
+const SETTINGS = [
+  ["背景色", "bgColor"],
+  ["背景", "flg"],
+  ["背景拡大", "zoom"],
+  ["文字色", "color"],
+  ["暗幕", "alpha"],
+  ["国旗", "kokki"],
+  ["タイトル", "title"],
+  ["タイトルサイズ", "titleSize"],
+  ["タイトルY", "titleY"],
+  ["日本語タイトル", "titleJa"],
+  ["フォント", "font"],
+  ["太さ", "isBold"],
+  ["イタリック", "italic"],
+  ["フォント2", "font2"],
+  ["リガチャ", "ligature"],
+  ["フォントサイズ", "fontSize"],
+  ["全体の縦位置", "spacing"],
+  ["歌詞の縦位置", "spacing2"],
+  ["ルビの位置", "spacing4"],
+];
+const SETTING_BY_LABEL = new Map(SETTINGS);
+const DEPRECATED = new Set(["配置"]);          // 廃止した設定名(読み込んでも無視する)
+
+// 「@設定名 値」の行なら {label, name, value}、そうでなければ null
+function parseSettingLine(line) {
+  const m = /^@(\S+)(?:[ \t]+(.*))?$/.exec(line);
+  if (!m) return null;
+  const name = SETTING_BY_LABEL.get(m[1]);
+  if (!name && !DEPRECATED.has(m[1])) return null;
+  return { label: m[1], name, value: (m[2] ?? "").trimEnd() };
+}
+
+// "値|表示名|印" (表示名は省略すると値と同じ)
+// 印: rtl=右から左に書く文字体系のフォント / both=左右どちらにも使う(RTL用の「値 (RTL)」も自動で追加)
+const FONT_LIST = `Nunito
 Arial Rounded MT
 Sofia Sans|Sofia Sans(ブルガリア語)
 Gaa gayane
-Calibri
+Calibri|Calibri|both
 candara
-Segoe UI
+Segoe UI|Segoe UI|both
 Helvetica
 Arial
 Inter
@@ -206,7 +273,7 @@ Century
 Courier New
 Consolas
 fira code
-Times New Roman
+Times New Roman|Times New Roman|both
 Palatino Linotype
 Constantia
 Sylfaen
@@ -228,8 +295,8 @@ Arial Unicode MS|Arial Unicode MS(unicode)
 SBL Greek
 New Athena Unicode
 Noto Sans Ethiopic
-Varela Round|Varela Round(ヘブライ)
-Solitreo|Solitreo(ヘブライ)
+Varela Round|Varela Round(ヘブライ)|rtl
+Solitreo|Solitreo(ヘブライ)|rtl
 karma|karma(ヒンディー)
 Sanskrit Text|Sanskrit Text(ヒンディー)
 Kokila|Kokila(ヒンディー)
@@ -241,8 +308,8 @@ Kalam|Kalam(ヒンディー)
 Mukta Vaani|Mukta Vaani(グジャラート)
 Noto Sans Sinhala
 Noto Serif Sinhala
-Noto Sans Thaana|Noto Sans Thaana(ディベヒ語)
-Hawwa|Hawwa(ディベヒ語)
+Noto Sans Thaana|Noto Sans Thaana(ディベヒ語)|rtl
+Hawwa|Hawwa(ディベヒ語)|rtl
 Tiro Tamil
 Pavanam|Pavanam(タミル)
 Mandali|Mandali(テルグ)
@@ -251,17 +318,17 @@ Gayathri|Gayathri(マラヤーラム旧正書法)
 Noto Sans Malayalam|Noto Sans Malayalam(マラヤーラム新正書法)
 Noto Serif Bengali|Noto Serif Bengali(ベンガル)
 Baloo Bhaina 2|Baloo Bhaina 2(オリヤー)
-Jameel Noori Nastaleeq|Jameel Noori Nastaleeq(ナスタアリーク)
-Noto Nastaliq Urdu|Noto Nastaliq Urdu(ナスタアリーク)
-Gulzar|Gulzar(ナスタアリーク)
-aldhabi|aldhabi(ナスタアリーク)
-IranNastaliq|IranNastaliq(ナスタアリーク)
-Arabic Typesetting|Arabic Typesetting(ナスフ体)
-KFGQPC Uthman Taha Naskh|KFGQPC Uthman Taha Naskh(ナスフ体)
-Bahij Uthman Taha|Bahij Uthman Taha(ナスフ体)
-Amiri|Amiri(ナスフ体)
-Amiri Quran|Amiri Quran(ナスフ体)
-Cairo Play|Cairo Play(アラビア語)
+Jameel Noori Nastaleeq|Jameel Noori Nastaleeq(ナスタアリーク)|rtl
+Noto Nastaliq Urdu|Noto Nastaliq Urdu(ナスタアリーク)|rtl
+Gulzar|Gulzar(ナスタアリーク)|rtl
+aldhabi|aldhabi(ナスタアリーク)|rtl
+IranNastaliq|IranNastaliq(ナスタアリーク)|rtl
+Arabic Typesetting|Arabic Typesetting(ナスフ体)|rtl
+KFGQPC Uthman Taha Naskh|KFGQPC Uthman Taha Naskh(ナスフ体)|rtl
+Bahij Uthman Taha|Bahij Uthman Taha(ナスフ体)|rtl
+Amiri|Amiri(ナスフ体)|rtl
+Amiri Quran|Amiri Quran(ナスフ体)|rtl
+Cairo Play|Cairo Play(アラビア語)|rtl
 Noto Sans Myanmar|Noto Sans Myanmar(ビルマ語)
 Battambang|Battambang(クメール語)
 Kantumruy Pro|Kantumruy Pro(クメール語)
@@ -313,56 +380,136 @@ Noto Sans HK|Noto Sans(香港)
 Noto Sans TC|Noto Sans(台湾)
 Noto Sans SC|Noto Sans(中国)
 Noto Sans
-BIZ UDPゴシック
-`.trim().split("\n");
+BIZ UDPゴシック`.trim().split("\n");
+const RTL_SUFFIX = " (RTL)";                    // 左右どちらにも使うフォントの、RTL用の名前の接尾辞
+const FONT_RTL = new Set(
+  FONT_LIST.map((l) => l.split("|")).filter((p) => p[2] === "rtl").map((p) => p[0])
+);
+const isRtlFont = (key) => FONT_RTL.has(key) || key.endsWith(RTL_SUFFIX);
+const fontFamily = (key) => key.endsWith(RTL_SUFFIX) ? key.slice(0, -RTL_SUFFIX.length) : key;
 
 /* ---------- DOM ---------- */
 const form = document.form1;
+const $ = (name) => form.elements[name];
 const canvas = document.getElementById("canvas1");
 const ctx = canvas.getContext("2d");
 const statusEl = document.getElementById("status");
+const pageSel = document.getElementById("pageSel");
 
 // フォント選択肢を生成
 (function buildFontOptions() {
   const frag = document.createDocumentFragment();
   for (const line of FONT_LIST) {
-    const [value, label = value] = line.split("|");
-    const opt = new Option(label, value, false, value === "Times New Roman");
-    frag.append(opt);
+    const [value, label = value, flag] = line.split("|");
+    const text = flag === "rtl" ? `${label} [RTL]` : label;
+    frag.append(new Option(text, value, false, value === "Times New Roman"));
+    if (flag === "both") frag.append(new Option(`${label} [RTL]`, value + RTL_SUFFIX));
   }
-  form.font.append(frag);
+  $("font").append(frag);
 })();
 
 /* ---------- 入力値の読み取り ---------- */
 function readOptions() {
-  const f = form;
-  const lines = (name) => f[name].value.split("\n");
+  const v = (n) => $(n).value;
   return {
-    bgColor:   f.bgColor.value,
-    flg:       f.flg.value.trim(),
-    kokki:     f.kokki.value.trim(),
-    zoom:      f.zoom.checked,
-    title:     f.title.value,
-    titleSize: Number(f.titleSize.value),
-    titleY:    Number(f.titleY.value),
-    titleJa:   f.titleJa.value,
-    text:      lines("lyr"),
-    text2:     lines("lyr2"),
-    ja:        lines("lyrJa"),
-    isBold:    f.isBold.value,
-    type:      f.type.value,
-    font:      f.font.value,
-    font2:     f.font2.value,
-    italic:    f.italic.value,
-    color:     f.color.value,
-    alpha:     Number(f.alpha.value),
-    LR:        f.LR.value,
-    ligature:  f.ligature.value === "true",
-    fontSize:  Number(f.fontSize.value),
-    spacing:   Number(f.spacing.value),
-    spacing2:  Number(f.spacing2.value),
-    spacing4:  Number(f.spacing4.value),
+    bgColor:   v("bgColor"),
+    flg:       imageSrc("flg"),
+    kokki:     imageSrc("kokki"),
+    zoom:      $("zoom").checked,
+    title:     v("title"),
+    titleSize: Number(v("titleSize")),
+    titleY:    Number(v("titleY")),
+    titleJa:   v("titleJa"),
+    isBold:    v("isBold"),
+    font:      fontFamily(v("font")),
+    font2:     v("font2"),
+    rtl:       isRtlFont(v("font")),
+    italic:    v("italic") === "yes" ? "italic" : "",
+    color:     v("color"),
+    alpha:     Number(v("alpha")),
+    ligature:  v("ligature") === "true",
+    fontSize:  Number(v("fontSize")),
+    spacing:   Number(v("spacing")),
+    spacing2:  Number(v("spacing2")),
+    spacing4:  Number(v("spacing4")),
   };
+}
+
+/* ---------- 歌詞をページに分ける ---------- */
+// 空行で連を区切り、連の行数を3等分(原語/読み/和訳)。
+// 1ページは最大 MAX_ROWS 行で、超えた分は次のページへ(5行→4+1、6行→4+2)。
+// 先頭に必ずタイトルページ、末尾に必ず背景のみのページを置く。
+function buildPages(raw) {
+  const warnings = [];
+  const stanzas = [];
+  let cur = [];
+  for (const line of raw.split(/\r?\n/)) {
+    if (parseSettingLine(line)) continue;        // @設定の行は歌詞に数えない
+    if (line.trim() === "") {
+      if (cur.length) { stanzas.push(cur); cur = []; }
+    } else {
+      cur.push(line);
+    }
+  }
+  if (cur.length) stanzas.push(cur);
+
+  const pages = [{ kind: "title" }];
+  stanzas.forEach((lines, si) => {
+    const no = si + 1;
+    if (lines.some((l) => l.startsWith("@"))) {
+      warnings.push(`連${no}: 「@」で始まる行があります(未知の設定名は歌詞として扱われます)`);
+    }
+    if (lines.length % 3) {
+      warnings.push(`連${no}: ${lines.length}行です。3の倍数にしてください(余りの行は無視します)`);
+    }
+    const n = Math.floor(lines.length / 3);
+    if (!n) return;
+    const parts = Math.ceil(n / MAX_ROWS);
+    for (let k = 0; k < parts; k++) {
+      const a = k * MAX_ROWS;
+      const b = Math.min(a + MAX_ROWS, n);
+      pages.push({
+        kind: "main4",
+        stanza: no,
+        part: k + 1,
+        parts,
+        text:  lines.slice(a, b),
+        text2: lines.slice(n + a, n + b),
+        ja:    lines.slice(2 * n + a, 2 * n + b),
+      });
+    }
+  });
+  pages.push({ kind: "bg" });
+  return { pages, warnings };
+}
+
+function pageLabel(pg, i) {
+  if (pg.kind === "title") return `${i}: タイトル`;
+  if (pg.kind === "bg") return `${i}: 背景のみ(最後)`;
+  const split = pg.parts > 1 ? `(${pg.part}/${pg.parts})` : "";
+  const head = removeRuby(pg.text[0], false);   // 一行目は省略せず最後まで
+  return `${i}: 連${pg.stanza}${split} ${head}`;
+}
+
+/* ---------- ページ切り替え ---------- */
+let pageIndex = 0;
+let pageSig = "";
+
+function syncPageSelect(pages) {
+  pageIndex = Math.max(0, Math.min(pageIndex, pages.length - 1));
+  const labels = pages.map(pageLabel);
+  const sig = labels.join("\n");
+  if (sig !== pageSig) {
+    pageSig = sig;
+    pageSel.replaceChildren(...labels.map((t, i) => new Option(t, String(i))));
+  }
+  pageSel.value = String(pageIndex);
+  pageSel.title = labels[pageIndex];
+}
+
+function goPage(delta) {
+  pageIndex = Math.max(0, pageIndex + delta);   // 上限は update 内で補正
+  scheduleUpdate();
 }
 
 /* ---------- 画像読み込み(キャッシュ付き) ---------- */
@@ -380,7 +527,6 @@ function loadImage(src) {
     img.src = src;
   });
 
-  // CORS対応で読めれば PNG保存も可能。ダメなら通常読み込み(表示のみ)
   const p = tryLoad(true)
     .catch(() => tryLoad(false))
     .catch(() => null);
@@ -388,22 +534,56 @@ function loadImage(src) {
   return p;
 }
 
+/* ---------- 手元の画像(ファイル選択・ドラッグ&ドロップ) ---------- */
+// 背景画像と国旗は、URLの欄が空のときだけ、手元のファイルを使う。
+// 手元のファイルは設定テキストには保存されない。
+const IMAGE_FIELDS = ["flg", "kokki"];
+const localImages = { flg: null, kokki: null };   // { name, url }
+const defaultPlaceholder = {};
+for (const n of IMAGE_FIELDS) defaultPlaceholder[n] = $(n).placeholder;
+
+function imageSrc(name) {
+  return $(name).value.trim() || localImages[name]?.url || "";
+}
+
+function clearLocalImage(name) {
+  const cur = localImages[name];
+  if (!cur) return;
+  URL.revokeObjectURL(cur.url);
+  imageCache.delete(cur.url);
+  localImages[name] = null;
+  $(name).placeholder = defaultPlaceholder[name];
+}
+
+function setLocalImage(name, file) {
+  if (!file.type.startsWith("image/")) {
+    notices.push(`「${file.name}」は画像ではありません`);
+    scheduleUpdate();
+    return;
+  }
+  clearLocalImage(name);
+  localImages[name] = { name: file.name, url: URL.createObjectURL(file) };
+  $(name).value = "";
+  $(name).placeholder = `ファイル: ${file.name}`;
+  scheduleUpdate();
+}
+
 /* ---------- テキスト処理 ---------- */
 function removeRuby(str, ligature) {
   if (str === undefined) return "";
   let s = str.replace(/\((.*?)\|.*?\)/g, "$1");
   if (ligature) {
-    s = s.replace(/ffi/g, "\uFB03")
-         .replace(/ffl/g, "\uFB04")
-         .replace(/fi/g, "\uFB01")
-         .replace(/fl/g, "\uFB02")
-         .replace(/ff/g, "\uFB00");
+    s = s.replace(/ffi/g, "ﬃ")
+         .replace(/ffl/g, "ﬄ")
+         .replace(/fi/g, "ﬁ")
+         .replace(/fl/g, "ﬂ")
+         .replace(/ff/g, "ﬀ");
   }
   return s;
 }
 
 /* ---------- 描画 ---------- */
-function drawBackground(o, img) {
+function drawBackground(ctx, o, img) {
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = o.bgColor;
   ctx.fillRect(0, 0, W, H);
@@ -413,18 +593,16 @@ function drawBackground(o, img) {
   const aspect = img.width / img.height;
   const wide = 16 / 9;
   if ((aspect > wide && !o.zoom) || (aspect < wide && o.zoom)) {
-    // 横幅に合わせる
-    const h = W / aspect;
+    const h = W / aspect;                       // 横幅に合わせる
     ctx.drawImage(img, 0, (H - h) / 2, W, h);
   } else {
-    // 高さに合わせる
-    const w = H * aspect;
+    const w = H * aspect;                       // 高さに合わせる
     ctx.drawImage(img, (W - w) / 2, 0, w, H);
   }
 }
 
-// 暗幕(全モード共通)
-function drawDim(o) {
+// 暗幕(全ページ共通)
+function drawDim(ctx, o) {
   if (!o.alpha) return;
   ctx.save();
   ctx.fillStyle = o.color === "black" ? "white" : "black";
@@ -433,7 +611,7 @@ function drawDim(o) {
   ctx.restore();
 }
 
-function drawTitle(o, flagImg) {
+function drawTitle(ctx, o, flagImg) {
   const shadow = o.color === "black" ? "white" : "black";
   ctx.fillStyle = o.color;
   ctx.shadowColor = shadow;
@@ -451,15 +629,14 @@ function drawTitle(o, flagImg) {
   }
 }
 
-function drawMain(o) {
+function drawMain(ctx, o, pg) {
   const shadow = o.color === "black" ? "white" : "black";
-  const under = o.LR === "under";
-  const left  = o.LR === "left";
-  const right = o.LR === "right";
-  const maxW  = W - 80;
+  const rtl = o.rtl;                            // 右から左に書くフォントか
+  const maxW = W - 80;
   const rm = (s) => removeRuby(s, o.ligature);
   const mainFont = `${o.italic} ${o.isBold} ${o.fontSize}px "${o.font}"`;
-  const rows = [0, 1, 2, 3];
+  const n = pg.text.length;
+  const rows = Array.from({ length: n }, (_, i) => i);
 
   ctx.shadowColor = shadow;
 
@@ -469,34 +646,23 @@ function drawMain(o) {
     ctx.textAlign = "left";
     ctx.shadowBlur = 10;
 
-    /* 2段目の歌詞 */
+    /* 2段目(読み) */
     ctx.font = o.font2;
-    const t2Shift = [0, 50, 110, 160];
     for (const r of rows) {
-      const y = 120 + 180 * r + o.spacing + ROW_OFFSET[r] - (under ? t2Shift[r] : 0);
-      ctx.fillText(rm(o.text2[r]), 42.5, y, maxW);
+      const y = 120 + 180 * r + o.spacing + ROW_OFFSET[r];
+      ctx.fillText(rm(pg.text2[r]), 42.5, y, maxW);
     }
 
     /* 和訳 */
     ctx.font = `${JA_SIZE}px "Times New Roman", "${JP_FONT}", "Source Han Serif K"`;
-    if (under) {
-      ctx.textAlign = "right";
-      const jaShift = [165, 110, 55, 0];
-      for (const r of rows) {
-        const y = JA_SIZE + 661 + o.spacing - jaShift[r];
-        ctx.fillText(rm(o.ja[r]), W - 40, y, maxW);
-      }
-      ctx.textAlign = "left";
-    } else {
-      for (const r of rows) {
-        const y = JA_SIZE + 121 + 180 * r + o.spacing + ROW_OFFSET[r];
-        ctx.fillText(rm(o.ja[r]), 40, y, maxW);
-      }
+    for (const r of rows) {
+      const y = JA_SIZE + 121 + 180 * r + o.spacing + ROW_OFFSET[r];
+      ctx.fillText(rm(pg.ja[r]), 40, y, maxW);
     }
 
     /* ルビ */
     for (const r of rows) {
-      const line = o.text[r] ?? "";
+      const line = pg.text[r] ?? "";
       ctx.textAlign = "left";
       ctx.font = mainFont;
       const lineWidth = ctx.measureText(rm(line)).width;
@@ -521,23 +687,16 @@ function drawMain(o) {
         }
 
         const baseY = (12 + 176 * r + o.spacing4) - o.fontSize + o.spacing + o.spacing2;
-        if (right) {
-          // 右から左へ書く言語
+        if (rtl) {
           const x = W - 80 - width * ratio;
           ctx.fillText(writeText, x, baseY + 20, maxW);
           ctx.fillText(writeText, x, baseY + 20, maxW);
         } else {
           const x = 40 + width * ratio;
-          if (left) {
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = shadow;
-            ctx.strokeText(writeText, x, baseY, maxW);
-            ctx.fillText(writeText, x, baseY, maxW);
-          } else {
-            const y = baseY - 55 * r;
-            ctx.fillText(writeText, x, y, maxW);
-            ctx.fillText(writeText, x, y, maxW);
-          }
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = shadow;
+          ctx.strokeText(writeText, x, baseY, maxW);
+          ctx.fillText(writeText, x, baseY, maxW);
         }
       }
     }
@@ -548,21 +707,17 @@ function drawMain(o) {
     ctx.fillStyle = o.color;
     ctx.textAlign = "left";
 
-    const mainShift = [0, 55, 110, 165];
-    const rightBase = [80, 260, 440, 620];
-    const normalBase = [70, 250, 430, 610];
-
     for (const blur of [10, 2]) {
       ctx.shadowBlur = blur;
       for (const r of rows) {
-        const str = rm(o.text[r]);
+        const str = rm(pg.text[r]);
         let x, y;
-        if (right) {
+        if (rtl) {
           x = W - 80 - Math.min(ctx.measureText(str).width, maxW);
-          y = rightBase[r] + o.spacing + o.spacing2 + ROW_OFFSET[r];
+          y = 80 + 180 * r + o.spacing + o.spacing2 + ROW_OFFSET[r];
         } else {
           x = 40;
-          y = normalBase[r] + o.spacing + o.spacing2 + ROW_OFFSET[r] - (under ? mainShift[r] : 0);
+          y = 70 + 180 * r + o.spacing + o.spacing2 + ROW_OFFSET[r];
         }
         ctx.fillText(str, x, y, maxW);
       }
@@ -571,9 +726,27 @@ function drawMain(o) {
   ctx.globalAlpha = 1;
 }
 
+// 1ページ分を、指定したcanvasのコンテキストに描く(画面表示にも書き出しにも使う)
+function renderPage(ctx, o, pg, bgImg, flagImg) {
+  ctx.save();
+  drawBackground(ctx, o, bgImg);
+  drawDim(ctx, o);
+  if (pg.kind === "title") drawTitle(ctx, o, flagImg);
+  else if (pg.kind === "main4") drawMain(ctx, o, pg);
+  ctx.restore();
+}
+
+/* ---------- 状態(ページの種類)に応じて項目を出し分け ---------- */
+function applyMode(kind) {
+  for (const el of form.querySelectorAll("[data-modes]")) {
+    el.hidden = !el.dataset.modes.split(" ").includes(kind);
+  }
+}
+
 /* ---------- 更新(連続入力はまとめて1フレームに) ---------- */
 let renderId = 0;
 let scheduled = false;
+let notices = [];   // 読み込み時の注意(次の描画で表示)
 
 function scheduleUpdate() {
   if (scheduled) return;
@@ -587,10 +760,14 @@ function scheduleUpdate() {
 async function update() {
   const id = ++renderId;
   const o = readOptions();
+  const { pages, warnings } = buildPages($("lyr").value);
+  syncPageSelect(pages);
+  const pg = pages[pageIndex];
+  applyMode(pg.kind);
 
   const [bgImg, flagImg] = await Promise.all([
     loadImage(o.flg),
-    o.type === "title" ? loadImage(o.kokki) : Promise.resolve(null),
+    pg.kind === "title" ? loadImage(o.kokki) : Promise.resolve(null),
   ]);
 
   // フォント読み込み待ち(失敗しても描画は続行)
@@ -599,14 +776,13 @@ async function update() {
   // 待っている間に新しい更新が走っていたら破棄
   if (id !== renderId) return;
 
-  statusEl.textContent = (o.flg && !bgImg) ? "背景画像を読み込めませんでした" : "";
+  const msgs = [...notices, ...warnings];
+  notices = [];
+  if (o.flg && !bgImg) msgs.push("背景画像を読み込めませんでした");
+  if (pg.kind === "title" && o.kokki && !flagImg) msgs.push("国旗を読み込めませんでした");
+  statusEl.textContent = msgs.join("\n");
 
-  ctx.save();
-  drawBackground(o, bgImg);
-  drawDim(o);
-  if (o.type === "title") drawTitle(o, flagImg);
-  else if (o.type === "main4") drawMain(o);
-  ctx.restore();
+  renderPage(ctx, o, pg, bgImg, flagImg);
 }
 
 /* ---------- スライダーの値表示 ---------- */
@@ -617,24 +793,308 @@ function syncOutputs() {
   }
 }
 
-/* ---------- 状態に応じて項目を出し分け ---------- */
-function applyMode() {
-  const type = form.type.value;
-  for (const el of form.querySelectorAll("[data-modes]")) {
-    el.hidden = !el.dataset.modes.split(" ").includes(type);
+/* ---------- @設定の読み込み・保存 ---------- */
+function getSetting(name) {
+  const el = $(name);
+  return el.type === "checkbox" ? String(el.checked) : el.value;
+}
+
+function applySetting(label, name, value) {
+  const el = $(name);
+  if (el.type === "checkbox") {
+    el.checked = /^(true|yes|1|on|はい)$/i.test(value);
+  } else if (el.tagName === "SELECT") {
+    if ([...el.options].some((op) => op.value === value)) el.value = value;
+    else notices.push(`@${label} の値「${value}」は選べません`);
+  } else {
+    el.value = value;
+    if (IMAGE_FIELDS.includes(name) && value.trim()) clearLocalImage(name);   // URLが入ったら手元のファイルは外す
+  }
+}
+
+// 歌詞欄の「@設定名 値」の行をスライダー等に反映する(行は歌詞欄に残す)。反映した行数を返す
+function applyLyricsSettings() {
+  let applied = 0;
+  for (const line of $("lyr").value.split(/\r?\n/)) {
+    const st = parseSettingLine(line);
+    if (!st) continue;
+    if (st.name) applySetting(st.label, st.name, st.value);   // 廃止した設定名は無視するだけ
+    applied++;
+  }
+  if (applied) {
+    syncOutputs();
+    scheduleUpdate();
+  }
+  return applied;
+}
+
+function settingsBlock() {
+  return SETTINGS.map(([label, name]) => `@${label} ${getSetting(name)}`).join("\n");
+}
+
+// 歌詞欄から@設定の行を除いた歌詞だけを返す
+function lyricsBody() {
+  return $("lyr").value.split(/\r?\n/)
+    .filter((l) => !parseSettingLine(l)).join("\n")
+    .replace(/^(?:[ \t]*\r?\n)+/, "")
+    .replace(/\s+$/, "");
+}
+
+// 現在の設定で、歌詞欄の@行を書き換える(先頭に置く)
+function writeSettingsToLyrics() {
+  $("lyr").value = settingsBlock() + "\n\n" + lyricsBody();
+  $("lyr").scrollTop = 0;
+  scheduleUpdate();
+}
+
+// 曲名(ファイル名に使う)。@タイトルから、使えない文字を除いたもの
+function songName() {
+  const t = $("title").value
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_")
+    .trim()
+    .replace(/[. ]+$/, "");
+  return t || "lyrics";
+}
+
+// 設定(@行)と歌詞をまとめたテキスト
+function projectText() {
+  return settingsBlock() + "\n\n" + lyricsBody() + "\n";
+}
+
+function download(blob, filename) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function saveText() {
+  download(new Blob([projectText()], { type: "text/plain;charset=utf-8" }), `${songName()}.txt`);
+}
+
+/* ---------- ZIP(無圧縮・ライブラリなし) ---------- */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+// files: [{ name, data: Uint8Array }] → ZIPのBlob(ファイル名はUTF-8)
+function makeZip(files) {
+  const enc = new TextEncoder();
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const parts = [];
+  const central = [];
+  let offset = 0;
+
+  for (const f of files) {
+    const name = enc.encode(f.name);
+    const size = f.data.length;
+    const crc = crc32(f.data);
+
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);          // 展開に必要なバージョン
+    lh.setUint16(6, 0x0800, true);      // ファイル名はUTF-8
+    lh.setUint16(8, 0, true);           // 無圧縮
+    lh.setUint16(10, dosTime, true);
+    lh.setUint16(12, dosDate, true);
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, size, true);
+    lh.setUint32(22, size, true);
+    lh.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(lh.buffer), name, f.data);
+
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true);
+    ch.setUint16(12, dosTime, true);
+    ch.setUint16(14, dosDate, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, size, true);
+    ch.setUint32(24, size, true);
+    ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+
+    offset += 30 + name.length + size;
+  }
+
+  const cdSize = central.reduce((n, c) => n + c.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true);
+  end.setUint32(16, offset, true);
+
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/zip" });
+}
+
+/* ---------- 全ページをまとめて書き出す ---------- */
+// ファイル名: 歌詞ページは 曲名_01.png から、背景のみは 曲名_00.png、タイトルは 曲名_thumb.png。
+// ZIPには 曲名.txt(設定と歌詞)も入れる。
+async function exportZip() {
+  const btn = document.getElementById("exportZip");
+  if (btn.disabled) return;
+  const label = btn.textContent;
+  btn.disabled = true;
+  try {
+    const o = readOptions();
+    const { pages } = buildPages($("lyr").value);
+    const [bgImg, flagImg] = await Promise.all([loadImage(o.flg), loadImage(o.kokki)]);
+    try { await document.fonts.load(`${o.fontSize}px "${o.font}"`); } catch (_) {}
+
+    const base = songName();
+    const lyricCount = pages.filter((p) => p.kind === "main4").length;
+    const width = Math.max(2, String(lyricCount).length);
+    const pad = (n) => String(n).padStart(width, "0");
+
+    // 画面のcanvasは触らず、別のcanvasに描く
+    const off = document.createElement("canvas");
+    off.width = W;
+    off.height = H;
+    const offCtx = off.getContext("2d");
+
+    const files = [];
+    let lyricNo = 0;
+    for (let i = 0; i < pages.length; i++) {
+      btn.textContent = `書き出し中 ${i + 1} / ${pages.length}`;
+      const pg = pages[i];
+      const name = pg.kind === "title" ? `${base}_thumb.png`
+                 : pg.kind === "bg"    ? `${base}_${pad(0)}.png`
+                 :                       `${base}_${pad(++lyricNo)}.png`;
+
+      renderPage(offCtx, o, pg, bgImg, flagImg);
+      const blob = await new Promise((resolve) => off.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("画像を作れませんでした");
+      files.push({ name, data: new Uint8Array(await blob.arrayBuffer()) });
+      await new Promise((r) => setTimeout(r, 0));   // ボタンの表示を更新させる
+    }
+    files.push({ name: `${base}.txt`, data: new TextEncoder().encode(projectText()) });
+
+    download(makeZip(files), `${base}.zip`);
+    if (o.flg && !bgImg) notices.push("背景画像を読み込めなかったので、背景なしで書き出しました");
+    if (o.kokki && !flagImg) notices.push("国旗を読み込めなかったので、国旗なしで書き出しました");
+  } catch (err) {
+    notices.push(err && err.name === "SecurityError"
+      ? "外部サイトの画像が使われているため、画像を書き出せません。「ファイル」ボタンで手元の画像を選ぶと書き出せます"
+      : `書き出しに失敗しました: ${err && err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+    scheduleUpdate();                               // 注意の表示を更新
   }
 }
 
 /* ---------- イベント ---------- */
-form.addEventListener("input", () => {
-  applyMode();
+form.addEventListener("input", (e) => {
+  // URLを入力したら、選んでいた手元のファイルは外す
+  for (const n of IMAGE_FIELDS) if (e.target === $(n) && e.target.value.trim()) clearLocalImage(n);
   syncOutputs();
   scheduleUpdate();
 });
 form.addEventListener("submit", (e) => e.preventDefault());
 
+// 空の歌詞欄に貼り付けたときだけ、@設定を自動で反映する(手入力の途中や、中身があるときは反映しない)
+$("lyr").addEventListener("paste", () => {
+  if ($("lyr").value.trim() === "") setTimeout(applyLyricsSettings, 0);
+});
+document.getElementById("writeSettings").addEventListener("click", writeSettingsToLyrics);
+document.getElementById("applySettings").addEventListener("click", () => {
+  if (!applyLyricsSettings()) { notices.push("歌詞欄に@設定の行がありません"); scheduleUpdate(); }
+});
+
+pageSel.addEventListener("change", () => {
+  pageIndex = Number(pageSel.value);
+  scheduleUpdate();
+});
+document.getElementById("prev").addEventListener("click", () => goPage(-1));
+document.getElementById("next").addEventListener("click", () => goPage(1));
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  goPage(e.key === "ArrowLeft" ? -1 : 1);
+});
+
+document.getElementById("save").addEventListener("click", saveText);
+document.getElementById("load").addEventListener("click", () => document.getElementById("file").click());
+document.getElementById("file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  $("lyr").value = await file.text();
+  applyLyricsSettings();
+  pageIndex = 0;
+  scheduleUpdate();
+});
+
+/* ---------- 手元の画像: ボタン・ドラッグ&ドロップ ---------- */
+const imgFile = document.getElementById("imgFile");
+let pickTarget = null;
+
+form.addEventListener("click", (e) => {
+  const pick = e.target.closest("[data-pick]");
+  const clear = e.target.closest("[data-clear]");
+  if (pick) {
+    pickTarget = pick.dataset.pick;
+    imgFile.click();
+  } else if (clear) {
+    $(clear.dataset.clear).value = "";
+    clearLocalImage(clear.dataset.clear);
+    scheduleUpdate();
+  }
+});
+imgFile.addEventListener("change", () => {
+  const f = imgFile.files[0];
+  imgFile.value = "";
+  if (f && pickTarget) setLocalImage(pickTarget, f);
+});
+
+const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes("Files");
+
+function wireDrop(el, name) {
+  el.addEventListener("dragover", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    el.classList.add("drag");
+  });
+  el.addEventListener("dragleave", () => el.classList.remove("drag"));
+  el.addEventListener("drop", (e) => {
+    el.classList.remove("drag");
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f) setLocalImage(name, f);
+  });
+}
+for (const el of form.querySelectorAll("[data-drop]")) wireDrop(el, el.dataset.drop);
+wireDrop(document.querySelector(".canvas-wrap"), "flg");   // プレビューに落とすと背景画像になる
+
+// 枠の外に落としたとき、ブラウザが画像を開いて作業中の内容が消えないようにする
+for (const type of ["dragover", "drop"]) {
+  window.addEventListener(type, (e) => { if (hasFiles(e)) e.preventDefault(); });
+}
+
+document.getElementById("exportZip").addEventListener("click", exportZip);
+
 window.addEventListener("load", () => {
-  applyMode();
   syncOutputs();
   update();
 });
