@@ -121,17 +121,17 @@
         // グリッド上の左右の配置（列の位置）に基づいてフラットかシャープかを決定
         // 左側（colが小さい）ではフラット、右側（colが大きい）ではシャープ
         if (col < 4) {
-          if (pitchClass === 1) la♭el = 'D♭';
-          if (pitchClass === 3) la♭el = 'E♭';
-          if (pitchClass === 6) la♭el = 'G♭';
-          if (pitchClass === 8) la♭el = 'A♭';
-          if (pitchClass === 10) la♭el = 'B♭';
+          if (pitchClass === 1) label = 'D♭';
+          if (pitchClass === 3) label = 'E♭';
+          if (pitchClass === 6) label = 'G♭';
+          if (pitchClass === 8) label = 'A♭';
+          if (pitchClass === 10) label = 'B♭';
         } else {
-          if (pitchClass === 1) la♭el = 'C♯';
-          if (pitchClass === 3) la♭el = 'D♯';
-          if (pitchClass === 6) la♭el = 'F♯';
-          if (pitchClass === 8) la♭el = 'G♯';
-          if (pitchClass === 10) la♭el = 'A♯';
+          if (pitchClass === 1) label = 'C♯';
+          if (pitchClass === 3) label = 'D♯';
+          if (pitchClass === 6) label = 'F♯';
+          if (pitchClass === 8) label = 'G♯';
+          if (pitchClass === 10) label = 'A♯';
         }
       }
 
