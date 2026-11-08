@@ -101,7 +101,8 @@
     }
   }
 
-  const pitchClasses = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const naturalNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const naturalPitchClasses = [0, 2, 4, 5, 7, 9, 11];
 
   // グリッドを生成（一番上の行から下の行へ向かって配置）
   for (let row = 7; row >= 0; row--) {
@@ -110,12 +111,28 @@
       const midiNote = 36 + (col * 2) + (row * 5);
       const pitchClass = midiNote % 12;
 
-      let label = pitchClasses[pitchClass];
+      let label = '';
       
-      // 画像通り、一番上の行の一部を異名同音（Db, Eb）で表記
-      if (row === 7) {
-        if (pitchClass === 1) label = 'Db';
-        if (pitchClass === 3) label = 'Eb';
+      // 自然音の判定
+      if (naturalPitchClasses.includes(pitchClass)) {
+        const index = naturalPitchClasses.indexOf(pitchClass);
+        label = naturalNotes[index];
+      } else {
+        // グリッド上の左右の配置（列の位置）に基づいてフラットかシャープかを決定
+        // 左側（colが小さい）ではフラット、右側（colが大きい）ではシャープ
+        if (col < 4) {
+          if (pitchClass === 1) la♭el = 'D♭';
+          if (pitchClass === 3) la♭el = 'E♭';
+          if (pitchClass === 6) la♭el = 'G♭';
+          if (pitchClass === 8) la♭el = 'A♭';
+          if (pitchClass === 10) la♭el = 'B♭';
+        } else {
+          if (pitchClass === 1) la♭el = 'C♯';
+          if (pitchClass === 3) la♭el = 'D♯';
+          if (pitchClass === 6) la♭el = 'F♯';
+          if (pitchClass === 8) la♭el = 'G♯';
+          if (pitchClass === 10) la♭el = 'A♯';
+        }
       }
 
       const key = document.createElement('div');
