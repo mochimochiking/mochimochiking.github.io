@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2D Fourier Transform Playground — 高画質・カラー・任意縦横比</title>
+<style>
+:root{--bg:#0e1015;--panel:#161922;--panel2:#1e222d;--line:#2b3040;--fg:#e8eaf0;--mute:#9aa3b5;--acc:#4da3ff;--acc2:#ff5d5d}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif}
+header{padding:14px 20px 2px}
+h1{font-size:20px;margin:0}
+h1 small{font-weight:400;color:var(--mute);font-size:13px;margin-left:8px}
+.status{margin:4px 0 0;color:var(--mute);font-size:12.5px;min-height:1.4em;white-space:pre-wrap}
+.status.err{color:#ff8a8a}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;padding:12px 20px 4px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.card h3{margin:0 0 6px;font-size:13px;letter-spacing:.04em;color:var(--acc)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+.row>label{color:var(--mute)}
+.row .grow{flex:1;min-width:120px}
+.hint{color:var(--mute);font-size:12px;margin:4px 0}
+button,.btn{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer;font:inherit;display:inline-block}
+button:hover,.btn:hover{border-color:var(--acc)}
+button.mini{padding:2px 8px;font-size:12px}
+input[type=text],select{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;min-width:0}
+input[type=range]{accent-color:var(--acc);flex:1;min-width:100px}
+input[type=radio],input[type=checkbox]{accent-color:var(--acc)}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:6px;margin-top:6px}
+.thumb{border:2px solid transparent;border-radius:6px;background:#000;cursor:pointer;height:60px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.thumb.sel{border-color:var(--acc2)}
+.thumb canvas{max-width:100%;max-height:100%}
+.panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px;padding:10px 20px 18px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.panel.edit{border-color:#a33}
+.panel h2{margin:0 0 2px;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.panel h2 em{color:var(--acc2);font-style:normal}
+.panel p{margin:2px 0 8px;color:var(--mute);font-size:12px}
+.cvwrap{position:relative;margin:0 auto;line-height:0}
+.cvwrap canvas{width:100%;height:auto;display:block;border:1px solid #000;background:#000}
+canvas.edit{cursor:crosshair;touch-action:none}
+.ring{position:absolute;pointer-events:none;border:2px solid #ff4040;border-radius:50%;transform:translate(-50%,-50%);display:none;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+.desc{padding:4px 20px 28px;color:var(--mute);font-size:13px;max-width:1100px}
+.desc h2{color:var(--fg);font-size:15px;margin:14px 0 4px}
+.desc li{margin:2px 0}
+#lb{position:fixed;inset:0;background:rgba(5,6,9,.94);z-index:50;display:flex;flex-direction:column}
+.lb-bar{display:flex;gap:12px;align-items:center;padding:10px 14px;color:var(--mute)}
+.lb-bar b{color:var(--fg)}
+.lb-bar .sp{flex:1}
+.lb-stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+#lb-cv{cursor:grab;touch-action:none;background:#000}
+#lb-cv:active{cursor:grabbing}
+</style>
+</head>
+<body>
+<header>
+  <h1>2D Fourier Transform Playground<small>高画質 · RGBカラー · 任意の縦横比 · WebGL2</small></h1>
+  <p class="status" id="status">初期化中…</p>
+</header>
+
+<section class="controls">
+  <div class="card">
+    <h3>入力画像</h3>
+    <div class="row">
+      <label class="btn">ファイルを選択<input type="file" id="file-img" accept="image/*" hidden></label>
+      <input type="text" id="url-img" class="grow" placeholder="画像URL (CORS許可が必要)">
+      <button id="btn-url">読込</button>
+    </div>
+    <div class="hint">ドラッグ&amp;ドロップ / 貼り付け (Ctrl+V) でも読み込めます。縦横比は自由です。</div>
+    <div class="row">
+      <label for="res-select">処理解像度 (長辺)</label>
+      <select id="res-select">
+        <option value="512">512</option>
+        <option value="1024">1024</option>
+        <option value="2048" selected>2048</option>
+        <option value="4096">4096 (VRAM大)</option>
+      </select>
+    </div>
+    <div class="thumbs" id="sample-thumbs"></div>
+  </div>
+
+  <div class="card">
+    <h3>マスク</h3>
+    <div class="row">
+      <label class="btn">画像から読込<input type="file" id="file-mask" accept="image/*" hidden></label>
+      <button id="btn-invert">白黒反転</button>
+    </div>
+    <div class="hint">白 = 通過 / 黒 = 遮断。中心が低周波 (DC)。</div>
+    <div class="thumbs" id="mask-thumbs"></div>
+  </div>
+
+  <div class="card">
+    <h3>ブラシ</h3>
+    <div class="row">
+      <label><input type="radio" name="mode" id="mode-erase" checked> 消去 (遮断)</label>
+      <label><input type="radio" name="mode" id="mode-restore"> 復元 (通過)</label>
+    </div>
+    <div class="row"><label for="brush-size">サイズ</label><input type="range" id="brush-size" min="0" max="100" value="25"><span id="brush-val" style="min-width:3.6em;text-align:right"></span></div>
+    <div class="row"><label for="brush-soft">ぼかし</label><input type="range" id="brush-soft" min="0" max="100" value="0"></div>
+    <div class="row"><label><input type="checkbox" id="sym" checked> 点対称に同時編集 (実画像の共役対称性を保つ)</label></div>
+    <div class="hint">マウス: 左=選択モード / 右=逆モード / ホイール=サイズ。タッチ: モードを切り替えて描画。</div>
+  </div>
+
+  <div class="card">
+    <h3>表示・保存</h3>
+    <div class="row">
+      <label for="norm-select">結果の階調</label>
+      <select id="norm-select">
+        <option value="1" selected>自動正規化 (最小〜最大)</option>
+        <option value="0">そのまま (0〜1でクリップ)</option>
+        <option value="2">0を中間グレーに (差分表示)</option>
+      </select>
+    </div>
+    <div class="row"><label for="spec-bright">スペクトル明るさ</label><input type="range" id="spec-bright" min="-200" max="200" value="0"></div>
+    <div class="row">
+      <label for="spec-mono">スペクトル色</label>
+      <select id="spec-mono"><option value="0" selected>RGB別 (カラー)</option><option value="1">3ch平均 (モノクロ)</option></select>
+    </div>
+    <div class="row">
+      <button id="btn-save-result">結果をPNG保存</button>
+      <button id="btn-save-mask">マスクをPNG保存</button>
+    </div>
+  </div>
+</section>
+
+<main class="panels" id="panels">
+  <section class="panel">
+    <h2><span>入力画像</span><button class="mini" data-lb="original">⤢ 拡大</button></h2>
+    <p>リサイズ済みの入力 (RGB)。</p>
+    <div class="cvwrap"><canvas id="cv-original"></canvas></div>
+  </section>
+  <section class="panel">
+    <h2><span>スペクトル</span><button class="mini" data-lb="spectrum">⤢ 拡大</button></h2>
+    <p>順変換 (RGB各ch) の振幅を対数表示。中心が低周波。</p>
+    <div class="cvwrap"><canvas id="cv-spectrum"></canvas></div>
+  </section>
+  <section class="panel edit">
+    <h2><span>マスク後スペクトル <em>(ここを編集!)</em></span><button class="mini" data-lb="masked">⤢ 拡大</button></h2>
+    <p>ドラッグで周波数成分を消去/復元。</p>
+    <div class="cvwrap"><canvas id="cv-masked" class="edit"></canvas><i class="ring"></i><i class="ring"></i></div>
+  </section>
+  <section class="panel">
+    <h2><span>結果 (逆変換)</span><button class="mini" data-lb="result">⤢ 拡大</button></h2>
+    <p>マスク後スペクトルの逆変換 (実部)。拡大ビューで等倍まで確認可。</p>
+    <div class="cvwrap"><canvas id="cv-result"></canvas></div>
+  </section>
+  <section class="panel edit">
+    <h2><span>マスク</span><button class="mini" data-lb="mask">⤢ 拡大</button></h2>
+    <p>こちらでも編集できます。</p>
+    <div class="cvwrap"><canvas id="cv-mask" class="edit"></canvas><i class="ring"></i><i class="ring"></i></div>
+  </section>
+  <section class="panel">
+    <h2><span>基底関数</span><button class="mini" data-lb="basis">⤢ 拡大</button></h2>
+    <p>カーソル位置の周波数に対応する2D正弦波 (RGB別の位相)。</p>
+    <div class="cvwrap"><canvas id="cv-basis"></canvas></div>
+    <p id="basis-info"></p>
+  </section>
+</main>
+
+<section class="desc">
+  <h2>仕組みと仕様</h2>
+  <ul>
+    <li>FFTは外部ライブラリなしの素のWebGL2 (float32テクスチャ) で実装。R/G/B各チャンネルを独立に変換し、逆変換も毎回GPUで実行します。</li>
+    <li>任意の縦横比: 横・縦それぞれ独立に2のべき乗のFFTグリッドを選び、画像をそこへ高品質リサイズして処理します。表示・保存は元の縦横比に戻します。</li>
+    <li>高画質: 最大4096pxまで処理可能。表示は箱型フィルタでアンチエイリアスし、「拡大」ビューではホイールズーム・ドラッグ移動で等倍以上まで確認できます。</li>
+    <li>結果は逆変換の実部です。「点対称に同時編集」をONにすると、消去が左右対称に行われ振幅が半減しません。</li>
+    <li>新しい画像・解像度に切り替えても、編集したマスクは引き継がれます。</li>
+  </ul>
+</section>
+
+<div id="lb" hidden>
+  <div class="lb-bar">
+    <b id="lb-title"></b><span id="lb-zoom"></span>
+    <span class="sp"></span>
+    <span>ホイール: ズーム / ドラッグ: 移動 / ダブルクリック: リセット</span>
+    <button id="lb-100">等倍</button>
+    <button id="lb-close">閉じる (Esc)</button>
+  </div>
+  <div class="lb-stage"><canvas id="lb-cv"></canvas></div>
+</div>
+
+<script>
+'use strict';
+(() => {
+const $ = id => document.getElementById(id);
+const KINDS = ['original','spectrum','masked','result','mask','basis'];
+const KIND_ID = {original:0, spectrum:1, masked:2, mask:3, result:4, basis:5};
+const TITLES = {original:'入力画像', spectrum:'スペクトル (振幅)', masked:'マスク後スペクトル', result:'結果 (逆変換)', mask:'マスク', basis:'基底関数'};
+const SPEC_LO = -2.5, SPEC_HI = 1.5;   // log10(unitary amplitude) display range
+
+function setStatus(msg, err){ const s = $('status'); s.textContent = msg; s.classList.toggle('err', !!err); }
+function mkCanvas(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+/* ===================================================================== GL init */
+const glc = document.createElement('canvas');
+const gl = glc.getContext('webgl2', {alpha:false, antialias:false, depth:false, stencil:false, powerPreference:'high-performance'});
+if(!gl){ setStatus('このブラウザではWebGL2が利用できません。', true); return; }
+if(!gl.getExtension('EXT_color_buffer_float')){ setStatus('float32のレンダーターゲット (EXT_color_buffer_float) に未対応のGPU/ブラウザです。', true); return; }
+const MAXTEX = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+glc.addEventListener('webglcontextlost', e => { e.preventDefault(); setStatus('WebGLコンテキストが失われました。ページを再読み込みしてください。', true); });
+gl.bindVertexArray(gl.createVertexArray());
+
+/* ===================================================================== shaders */
+const VS = `#version 300 es
+void main(){
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const HDR = `#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+out vec4 oColor;
+const float TAU = 6.283185307179586;
+int bitrev(int x, int bits){
+  int r = 0;
+  for(int i = 0; i < 16; i++){
+    if(i >= bits) break;
+    r = (r << 1) | (x & 1);
+    x >>= 1;
+  }
+  return r;
+}
+`;
+
+// forward load: bit-reversed placement of one colour channel (real input)
+const FS_LOAD = `
+uniform sampler2D uSrc;
+uniform ivec2 uLog;
+uniform int uChan;
+uniform float uScale;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  ivec2 q = ivec2(bitrev(p.x, uLog.x), bitrev(p.y, uLog.y));
+  vec3 c = texelFetch(uSrc, q, 0).rgb;
+  float v = uChan == 0 ? c.r : (uChan == 1 ? c.g : c.b);
+  oColor = vec4(v * uScale, 0.0, 0.0, 1.0);
+}`;
+
+// one radix-2 (decimation in time) butterfly stage along x or y
+const FS_FFT = `
+uniform sampler2D uTex;
+uniform int uDir, uM, uPlace;
+uniform float uSign;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  int idx = uDir == 0 ? p.x : p.y;
+  int h = uM >> 1;
+  int base = idx & ~h;
+  int j = idx & (uM - 1);
+  ivec2 ia, ib;
+  if(uDir == 0){ ia = ivec2(base, p.y); ib = ivec2(base + h, p.y); }
+  else         { ia = ivec2(p.x, base); ib = ivec2(p.x, base + h); }
+  vec2 e = texelFetch(uTex, ia, 0).rg;
+  vec2 o = texelFetch(uTex, ib, 0).rg;
+  float ang = uSign * TAU * float(j) / float(uM);
+  vec2 w = vec2(cos(ang), sin(ang));
+  vec2 r = e + vec2(o.x * w.x - o.y * w.y, o.x * w.y + o.y * w.x);
+  if(uPlace == 0)      oColor = vec4(r.x, 0.0, 0.0, 1.0);
+  else if(uPlace == 1) oColor = vec4(0.0, r.x, 0.0, 1.0);
+  else if(uPlace == 2) oColor = vec4(0.0, 0.0, r.x, 1.0);
+  else                 oColor = vec4(r, 0.0, 1.0);
+}`;
+
+// inverse load: spectrum * mask, bit-reversed placement
+const FS_MASKLOAD = `
+uniform sampler2D uSpec, uMask;
+uniform ivec2 uN, uLog;
+uniform float uScale;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  ivec2 q = ivec2(bitrev(p.x, uLog.x), bitrev(p.y, uLog.y));
+  ivec2 s = (q + uN / 2) & (uN - ivec2(1));
+  float m = texelFetch(uMask, s, 0).r;
+  oColor = vec4(texelFetch(uSpec, q, 0).rg * (m * uScale), 0.0, 1.0);
+}`;
+
+const FS_MM0 = `
+uniform sampler2D uTex;
+uniform ivec2 uStep;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy) * uStep;
+  float mn = 3.0e38, mx = -3.0e38;
+  for(int y = 0; y < uStep.y; y++) for(int x = 0; x < uStep.x; x++){
+    vec3 v = texelFetch(uTex, p + ivec2(x, y), 0).rgb;
+    mn = min(mn, min(v.r, min(v.g, v.b)));
+    mx = max(mx, max(v.r, max(v.g, v.b)));
+  }
+  oColor = vec4(mn, mx, 0.0, 1.0);
+}`;
+
+const FS_MM = `
+uniform sampler2D uTex;
+uniform ivec2 uStep;
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy) * uStep;
+  float mn = 3.0e38, mx = -3.0e38;
+  for(int y = 0; y < uStep.y; y++) for(int x = 0; x < uStep.x; x++){
+    vec2 v = texelFetch(uTex, p + ivec2(x, y), 0).rg;
+    mn = min(mn, v.r);
+    mx = max(mx, v.g);
+  }
+  oColor = vec4(mn, mx, 0.0, 1.0);
+}`;
+
+const FS_GRAY = `
+uniform sampler2D uTex;
+uniform ivec2 uN;
+void main(){
+  vec3 c = texture(uTex, gl_FragCoord.xy / vec2(uN)).rgb;
+  oColor = vec4(vec3(dot(c, vec3(0.299, 0.587, 0.114))), 1.0);
+}`;
+
+const FS_SOLID = `
+void main(){ oColor = vec4(1.0); }`;
+
+// brush stroke (segment, optionally mirrored about the spectrum centre), blended into the mask
+const FS_BRUSH = `
+uniform ivec2 uN;
+uniform float uAspect, uRadius, uSoft, uValue;
+uniform vec4 uSeg, uSeg2;
+uniform int uSym;
+float dseg(vec2 s, vec2 t, vec2 p){
+  vec2 d = t - s;
+  float l2 = dot(d, d);
+  float a = l2 > 0.0 ? clamp(dot(p - s, d) / l2, 0.0, 1.0) : 0.0;
+  return length(p - (s + a * d));
+}
+void main(){
+  vec2 p = gl_FragCoord.xy / vec2(uN) * vec2(uAspect, 1.0);
+  float d = dseg(uSeg.xy, uSeg.zw, p);
+  if(uSym == 1) d = min(d, dseg(uSeg2.xy, uSeg2.zw, p));
+  float w = max(uSoft * uRadius, 1.0 / float(uN.y));
+  float a = clamp((uRadius - d) / w + 0.5, 0.0, 1.0);
+  oColor = vec4(vec3(uValue), a);
+}`;
+
+// all on-screen views (box-filtered when minified, nearest when magnified)
+const FS_DISPLAY = `
+uniform sampler2D uOrig, uS0, uS1, uS2, uMask, uRes, uMM;
+uniform int uKind, uSpecMono, uNorm;
+uniform ivec2 uN, uBasis;
+uniform vec2 uViewSize;
+uniform vec4 uView;
+uniform float uLo, uHi;
+
+float lg(float a){ return log(max(a, 1e-12)) * 0.4342944819; }
+float tone(float a){ return (lg(a) - uLo) / (uHi - uLo); }
+
+vec3 specCol(ivec2 p){
+  ivec2 q = (p + uN / 2) & (uN - ivec2(1));
+  float a0 = length(texelFetch(uS0, q, 0).rg);
+  float a1 = length(texelFetch(uS1, q, 0).rg);
+  float a2 = length(texelFetch(uS2, q, 0).rg);
+  if(uSpecMono == 1) return vec3(clamp(tone((a0 + a1 + a2) / 3.0), 0.0, 1.0));
+  return clamp(vec3(tone(a0), tone(a1), tone(a2)), 0.0, 1.0);
+}
+
+vec3 resCol(ivec2 p){
+  vec3 v = texelFetch(uRes, p, 0).rgb;
+  if(uNorm == 1){
+    vec2 mm = texelFetch(uMM, ivec2(0), 0).rg;
+    float r = mm.y - mm.x;
+    v = r > 1e-12 ? (v - mm.x) / r : vec3(0.5);
+  } else if(uNorm == 2){
+    vec2 mm = texelFetch(uMM, ivec2(0), 0).rg;
+    float r = max(max(abs(mm.x), abs(mm.y)), 1e-12);
+    v = 0.5 + 0.5 * v / r;
+  }
+  return clamp(v, 0.0, 1.0);
+}
+
+float phs(vec2 f){ return dot(f, f) > 1e-24 ? atan(f.y, f.x) : 0.0; }
+
+vec3 basisCol(ivec2 p){
+  ivec2 q = uBasis;
+  ivec2 k = ivec2(q.x >= uN.x / 2 ? q.x - uN.x : q.x, q.y >= uN.y / 2 ? q.y - uN.y : q.y);
+  vec3 ph = vec3(phs(texelFetch(uS0, q, 0).rg), phs(texelFetch(uS1, q, 0).rg), phs(texelFetch(uS2, q, 0).rg));
+  int ax = (k.x * p.x) & (uN.x - 1);
+  int ay = (k.y * p.y) & (uN.y - 1);
+  float a = TAU * (float(ax) / float(uN.x) + float(ay) / float(uN.y));
+  return 0.5 + 0.5 * cos(vec3(a) + ph);
+}
+
+vec3 colorAt(ivec2 p){
+  switch(uKind){
+    case 0: return texelFetch(uOrig, p, 0).rgb;
+    case 1: return specCol(p);
+    case 2: return specCol(p) * texelFetch(uMask, p, 0).r;
+    case 3: return vec3(texelFetch(uMask, p, 0).r);
+    case 4: return resCol(p);
+    case 5: return basisCol(p);
+  }
+  return vec3(0.0);
+}
+
+void main(){
+  vec2 foot = vec2(uN) * uView.zw / uViewSize;
+  ivec2 k = ivec2(clamp(ceil(foot - 0.001), vec2(1.0), vec2(8.0)));
+  vec2 base = floor(gl_FragCoord.xy);
+  vec3 acc = vec3(0.0);
+  for(int j = 0; j < k.y; j++){
+    for(int i = 0; i < k.x; i++){
+      vec2 sp = base + (vec2(float(i), float(j)) + 0.5) / vec2(k);
+      vec2 uv = uView.xy + sp / uViewSize * uView.zw;
+      ivec2 p = clamp(ivec2(floor(uv * vec2(uN))), ivec2(0), uN - ivec2(1));
+      acc += colorAt(p);
+    }
+  }
+  oColor = vec4(acc / float(k.x * k.y), 1.0);
+}`;
+
+function sh(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s) + '\n' + src.split('\n').map((l, i) => (i + 1) + ': ' + l).join('\n'));
+  return s;
+}
+function mkProg(fs){
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, HDR + fs));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  const u = {}, n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
+  for(let i = 0; i < n; i++){
+    const info = gl.getActiveUniform(prog, i);
+    u[info.name.replace(/\[0\]$/, '')] = {loc: gl.getUniformLocation(prog, info.name), type: info.type};
+  }
+  return {prog, u};
+}
+// the program must be current (gl.useProgram) when calling
+function setU(P, name, v){
+  const e = P.u[name]; if(!e) return;
+  switch(e.type){
+    case gl.INT: case gl.SAMPLER_2D: gl.uniform1i(e.loc, v); break;
+    case gl.FLOAT: gl.uniform1f(e.loc, v); break;
+    case gl.INT_VEC2: gl.uniform2i(e.loc, v[0], v[1]); break;
+    case gl.FLOAT_VEC2: gl.uniform2f(e.loc, v[0], v[1]); break;
+    case gl.FLOAT_VEC3: gl.uniform3f(e.loc, v[0], v[1], v[2]); break;
+    case gl.FLOAT_VEC4: gl.uniform4f(e.loc, v[0], v[1], v[2], v[3]); break;
+  }
+}
+
+const progs = {};
+try{
+  progs.load = mkProg(FS_LOAD);
+  progs.fft = mkProg(FS_FFT);
+  progs.maskload = mkProg(FS_MASKLOAD);
+  progs.mm0 = mkProg(FS_MM0);
+  progs.mm = mkProg(FS_MM);
+  progs.gray = mkProg(FS_GRAY);
+  progs.solid = mkProg(FS_SOLID);
+  progs.brush = mkProg(FS_BRUSH);
+  progs.display = mkProg(FS_DISPLAY);
+}catch(err){
+  console.error(err);
+  setStatus('シェーダのコンパイルに失敗しました:\n' + err.message.slice(0, 1200), true);
+  return;
+}
+gl.useProgram(progs.display.prog);
+['uOrig','uS0','uS1','uS2','uMask','uRes','uMM'].forEach((n, i) => setU(progs.display, n, i));
+
+/* ===================================================================== GPU resources */
+let allocated = [];
+let T = null;                 // render targets
+let G = {Nx:0, Ny:0, tw:0, th:0, lx:0, ly:0};
+
+function makeTarget(w, h, ifmt){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, ifmt, w, h);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const t = {tex, fbo, w, h};
+  allocated.push(t);
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if(st !== gl.FRAMEBUFFER_COMPLETE) throw new Error('framebuffer incomplete: 0x' + st.toString(16));
+  return t;
+}
+function disposeTargets(){
+  for(const t of allocated){ gl.deleteFramebuffer(t.fbo); gl.deleteTexture(t.tex); }
+  allocated = []; T = null;
+}
+function allocate(g){
+  while(gl.getError() !== gl.NO_ERROR){}
+  G = g;
+  const {Nx, Ny} = g;
+  const t = {
+    src:     makeTarget(Nx, Ny, gl.RGBA8),
+    spec:    [0, 1, 2].map(() => makeTarget(Nx, Ny, gl.RG32F)),
+    scratch: [makeTarget(Nx, Ny, gl.RG32F), makeTarget(Nx, Ny, gl.RG32F)],
+    res:     makeTarget(Nx, Ny, gl.RGBA32F),
+    mask:    makeTarget(Nx, Ny, gl.R8),
+    mm:      [],
+  };
+  let w = Nx, h = Ny;
+  while(w > 1 || h > 1){ w = Math.max(1, w >> 1); h = Math.max(1, h >> 1); t.mm.push(makeTarget(w, h, gl.RG32F)); }
+  const err = gl.getError();
+  if(err !== gl.NO_ERROR) throw new Error('GL error 0x' + err.toString(16));
+  T = t;
+}
+
+function bindT(unit, tex){ gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex); }
+function drawTo(t){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+  gl.viewport(0, 0, t.w, t.h);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+/* ===================================================================== FFT pipeline */
+function fftPasses(sign, finalTarget, place){
+  const P = progs.fft;
+  gl.useProgram(P.prog);
+  setU(P, 'uTex', 0); setU(P, 'uSign', sign);
+  const plan = [];
+  for(let m = 2; m <= G.Nx; m *= 2) plan.push([0, m]);
+  for(let m = 2; m <= G.Ny; m *= 2) plan.push([1, m]);
+  let src = T.scratch[0], dst = T.scratch[1];
+  for(let i = 0; i < plan.length; i++){
+    const last = i === plan.length - 1;
+    setU(P, 'uDir', plan[i][0]); setU(P, 'uM', plan[i][1]); setU(P, 'uPlace', last ? place : -1);
+    bindT(0, src.tex);
+    if(last && place >= 0) gl.colorMask(place === 0, place === 1, place === 2, false);
+    drawTo(last ? finalTarget : dst);
+    if(last && place >= 0) gl.colorMask(true, true, true, true);
+    if(!last){ const t = src; src = dst; dst = t; }
+  }
+}
+
+function forward(){
+  const P = progs.load, sc = 1 / Math.sqrt(G.Nx * G.Ny);
+  for(let c = 0; c < 3; c++){
+    gl.useProgram(P.prog);
+    setU(P, 'uSrc', 0); setU(P, 'uLog', [G.lx, G.ly]); setU(P, 'uChan', c); setU(P, 'uScale', sc);
+    bindT(0, T.src.tex);
+    drawTo(T.scratch[0]);
+    fftPasses(-1, T.spec[c], -1);
+  }
+}
+
+function runInverse(){
+  const P = progs.maskload, sc = 1 / Math.sqrt(G.Nx * G.Ny);
+  for(let c = 0; c < 3; c++){
+    gl.useProgram(P.prog);
+    setU(P, 'uSpec', 0); setU(P, 'uMask', 1); setU(P, 'uN', [G.Nx, G.Ny]); setU(P, 'uLog', [G.lx, G.ly]); setU(P, 'uScale', sc);
+    bindT(0, T.spec[c].tex); bindT(1, T.mask.tex);
+    drawTo(T.scratch[0]);
+    fftPasses(+1, T.res, c);
+  }
+  // global min / max over all channels (pyramid reduction)
+  let P2 = progs.mm0;
+  gl.useProgram(P2.prog);
+  setU(P2, 'uTex', 0); setU(P2, 'uStep', [G.Nx > 1 ? 2 : 1, G.Ny > 1 ? 2 : 1]);
+  bindT(0, T.res.tex);
+  drawTo(T.mm[0]);
+  P2 = progs.mm;
+  gl.useProgram(P2.prog);
+  setU(P2, 'uTex', 0);
+  for(let i = 1; i < T.mm.length; i++){
+    const prev = T.mm[i - 1];
+    setU(P2, 'uStep', [prev.w > 1 ? 2 : 1, prev.h > 1 ? 2 : 1]);
+    bindT(0, prev.tex);
+    drawTo(T.mm[i]);
+  }
+}
+
+/* ===================================================================== state */
+const S = {img:null, W:0, H:0, aspect:4/3, res:2048, objUrl:null, cursor:[0.5, 0.5]};
+const set = {bright:0, mono:false, norm:1};
+let ready = false;
+
+function p2(x){ const l = Math.log2(Math.max(1, x)), f = Math.floor(l); return Math.max(8, Math.pow(2, (l - f) >= 0.3 ? f + 1 : f)); }
+function calcGrid(W, H, L){
+  const s = Math.min(1, L / Math.max(W, H));
+  const tw = Math.max(1, Math.round(W * s)), th = Math.max(1, Math.round(H * s));
+  const cap = Math.min(MAXTEX, 8192);
+  const Nx = Math.min(cap, p2(tw)), Ny = Math.min(cap, p2(th));
+  return {Nx, Ny, tw, th, lx: Math.round(Math.log2(Nx)), ly: Math.round(Math.log2(Ny))};
+}
+
+// progressive halving, then a final high-quality draw
+function resizeHQ(src, sw, sh, dw, dh){
+  let cur = src, cw = sw, ch = sh;
+  while(cw >= dw * 2 || ch >= dh * 2){
+    const nw = cw >= dw * 2 ? Math.ceil(cw / 2) : cw, nh = ch >= dh * 2 ? Math.ceil(ch / 2) : ch;
+    const t = mkCanvas(nw, nh), g = t.getContext('2d');
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(cur, 0, 0, cw, ch, 0, 0, nw, nh);
+    cur = t; cw = nw; ch = nh;
+  }
+  const out = mkCanvas(dw, dh), g = out.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, dw, dh);
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(cur, 0, 0, cw, ch, 0, 0, dw, dh);
+  return out;
+}
+
+function uploadSource(){
+  const cv = resizeHQ(S.img, S.W, S.H, G.Nx, G.Ny);
+  gl.bindTexture(gl.TEXTURE_2D, T.src.tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+}
+
+/* ---- mask helpers */
+function setMaskFromSource(src){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const P = progs.gray;
+  gl.useProgram(P.prog);
+  setU(P, 'uTex', 0); setU(P, 'uN', [G.Nx, G.Ny]);
+  bindT(0, tex);
+  drawTo(T.mask);
+  gl.deleteTexture(tex);
+}
+function readMaskCanvas(){
+  if(!T) return null;
+  const {Nx, Ny} = G, buf = new Uint8Array(Nx * Ny * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, T.mask.fbo);
+  gl.readPixels(0, 0, Nx, Ny, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  const cv = mkCanvas(Nx, Ny), g = cv.getContext('2d'), id = g.createImageData(Nx, Ny);
+  for(let y = 0; y < Ny; y++){
+    const sy = Ny - 1 - y;
+    for(let x = 0; x < Nx; x++){
+      const s = (sy * Nx + x) * 4, d = (y * Nx + x) * 4, v = buf[s];
+      id.data[d] = id.data[d + 1] = id.data[d + 2] = v; id.data[d + 3] = 255;
+    }
+  }
+  g.putImageData(id, 0, 0);
+  return cv;
+}
+function invertMask(){
+  const P = progs.solid;
+  gl.useProgram(P.prog);
+  gl.enable(gl.BLEND); gl.blendEquation(gl.FUNC_SUBTRACT); gl.blendFunc(gl.ONE, gl.ONE);
+  drawTo(T.mask);
+  gl.blendEquation(gl.FUNC_ADD); gl.disable(gl.BLEND);
+  markMask();
+}
+function brushR(){ const v = +$('brush-size').value / 100; return 0.0012 + v * v * 0.35; }
+function brushSeg(s, t, value){
+  const A = S.aspect, {Nx, Ny} = G, P = progs.brush;
+  gl.useProgram(P.prog);
+  const toD = q => [q[0] * A, q[1]];
+  const mir = q => [1 + 1 / Nx - q[0], 1 + 1 / Ny - q[1]];
+  setU(P, 'uN', [Nx, Ny]); setU(P, 'uAspect', A);
+  setU(P, 'uSeg',  [...toD(s), ...toD(t)]);
+  setU(P, 'uSeg2', [...toD(mir(s)), ...toD(mir(t))]);
+  setU(P, 'uSym', $('sym').checked ? 1 : 0);
+  setU(P, 'uRadius', brushR()); setU(P, 'uSoft', +$('brush-soft').value / 100); setU(P, 'uValue', value);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  drawTo(T.mask);
+  gl.disable(gl.BLEND);
+}
+
+/* ===================================================================== views */
+function renderView(kind, w, h, view){
+  if(glc.width !== w || glc.height !== h){ glc.width = w; glc.height = h; }
+  const P = progs.display;
+  gl.useProgram(P.prog);
+  bindT(0, T.src.tex); bindT(1, T.spec[0].tex); bindT(2, T.spec[1].tex); bindT(3, T.spec[2].tex);
+  bindT(4, T.mask.tex); bindT(5, T.res.tex); bindT(6, T.mm[T.mm.length - 1].tex);
+  const {Nx, Ny} = G, c = S.cursor;
+  const px = clamp(Math.floor(c[0] * Nx), 0, Nx - 1), py = clamp(Math.floor(c[1] * Ny), 0, Ny - 1);
+  setU(P, 'uKind', KIND_ID[kind]); setU(P, 'uN', [Nx, Ny]);
+  setU(P, 'uViewSize', [w, h]); setU(P, 'uView', view);
+  setU(P, 'uLo', SPEC_LO - set.bright); setU(P, 'uHi', SPEC_HI - set.bright);
+  setU(P, 'uSpecMono', set.mono ? 1 : 0); setU(P, 'uNorm', set.norm);
+  setU(P, 'uBasis', [(px + (Nx >> 1)) & (Nx - 1), (py + (Ny >> 1)) & (Ny - 1)]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, w, h);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+const panels = {};
+for(const k of KINDS){
+  const cv = $('cv-' + k), wrap = cv.parentElement;
+  panels[k] = {canvas:cv, wrap, ctx:cv.getContext('2d', {alpha:false}), w:0, h:0, rings:[...wrap.querySelectorAll('.ring')]};
+}
+
+const dirty = new Set();
+let dirtyInv = false, raf = 0;
+function invalidate(...ks){ ks.forEach(k => dirty.add(k)); if(!raf) raf = requestAnimationFrame(frame); }
+function markMask(){ dirtyInv = true; invalidate('mask', 'masked', 'result'); }
+function frame(){
+  raf = 0;
+  if(!ready) return;
+  try{
+    if(dirtyInv){ dirtyInv = false; runInverse(); dirty.add('result'); }
+    for(const k of dirty){
+      const p = panels[k];
+      renderView(k, p.w, p.h, [0, 0, 1, 1]);
+      p.ctx.drawImage(glc, 0, 0);
+    }
+    if(lb.open && dirty.has(lb.kind)) drawLB();
+    dirty.clear();
+  }catch(err){ console.error(err); setStatus('描画エラー: ' + err.message, true); }
+}
+
+function layout(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let changed = false;
+  for(const k of KINDS){
+    const p = panels[k];
+    const inner = p.wrap.parentElement.clientWidth - 24;
+    const cssW = Math.max(120, Math.min(inner, window.innerHeight * 0.72 * S.aspect));
+    p.wrap.style.width = cssW + 'px';
+    const bw = clamp(Math.round(cssW * dpr), 64, 2048), bh = Math.max(1, Math.round(bw / S.aspect));
+    if(p.canvas.width !== bw || p.canvas.height !== bh){ p.canvas.width = bw; p.canvas.height = bh; changed = true; }
+    p.w = bw; p.h = bh;
+  }
+  if(changed && ready) invalidate(...KINDS);
+}
+new ResizeObserver(layout).observe($('panels'));
+
+function updateBasisText(){
+  if(!ready) return;
+  const {Nx, Ny} = G, c = S.cursor;
+  const px = clamp(Math.floor(c[0] * Nx), 0, Nx - 1), py = clamp(Math.floor(c[1] * Ny), 0, Ny - 1);
+  const ix = (px + (Nx >> 1)) & (Nx - 1), iy = (py + (Ny >> 1)) & (Ny - 1);
+  const kx = ix >= Nx / 2 ? ix - Nx : ix, ky = iy >= Ny / 2 ? iy - Ny : iy;
+  $('basis-info').textContent = `周波数 (kx, ky) = (${kx}, ${ky})  —  画像幅あたり ${Math.abs(kx)} 周期 / 画像高あたり ${Math.abs(ky)} 周期`;
+}
+
+/* ===================================================================== image loading / rebuild */
+function rebuild(note){
+  if(!S.img) return;
+  const prevMask = T ? readMaskCanvas() : null;
+  ready = false;
+  disposeTargets();
+  let res = S.res, msg = note || '';
+  for(;;){
+    try{ allocate(calcGrid(S.W, S.H, res)); break; }
+    catch(err){
+      console.warn(err); disposeTargets();
+      if(res <= 256){ setStatus('GPUメモリを確保できませんでした: ' + err.message, true); return; }
+      res = res / 2; S.res = res; $('res-select').value = String(res);
+      msg = `メモリ不足のため処理解像度を ${res} に下げました。`;
+    }
+  }
+  S.aspect = S.W / S.H;
+  layout();
+  uploadSource();
+  if(prevMask) setMaskFromSource(prevMask);
+  else { gl.bindFramebuffer(gl.FRAMEBUFFER, T.mask.fbo); gl.clearColor(1, 1, 1, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  forward();
+  ready = true;
+  dirtyInv = true;
+  invalidate(...KINDS);
+  updateBasisText();
+  const mb = Math.round(G.Nx * G.Ny * 64 / 1048576);
+  setStatus(`${S.W}×${S.H} → FFTグリッド ${G.Nx}×${G.Ny}（表示・保存は元の縦横比 ${S.W}:${S.H}）｜推定GPUメモリ約 ${mb} MB｜最大テクスチャ ${MAXTEX}` + (msg ? '\n' + msg : ''));
+}
+
+function setImage(img, objUrl){
+  if(S.objUrl && S.objUrl !== objUrl) URL.revokeObjectURL(S.objUrl);
+  S.objUrl = objUrl || null;
+  S.img = img;
+  S.W = img.naturalWidth || img.width; S.H = img.naturalHeight || img.height;
+  rebuild();
+}
+function loadFromURL(url, objUrl, cors){
+  setStatus('読み込み中…');
+  const img = new Image();
+  if(cors) img.crossOrigin = 'anonymous';
+  img.onload = () => { clearSel('sample-thumbs'); setImage(img, objUrl); };
+  img.onerror = () => { if(objUrl) URL.revokeObjectURL(objUrl); setStatus('画像を読み込めませんでした (URL/CORS/形式を確認してください)。', true); };
+  img.src = url;
+}
+function loadFile(f){
+  if(!f || !/^image\//.test(f.type)) return;
+  const u = URL.createObjectURL(f);
+  loadFromURL(u, u, false);
+}
+function loadMaskFile(f){
+  if(!f || !ready) return;
+  const u = URL.createObjectURL(f), img = new Image();
+  img.onload = () => { setMaskFromSource(img); URL.revokeObjectURL(u); clearSel('mask-thumbs'); markMask(); };
+  img.onerror = () => { URL.revokeObjectURL(u); setStatus('マスク画像を読み込めませんでした。', true); };
+  img.src = u;
+}
+
+/* ===================================================================== procedural samples & mask presets */
+function drawChart(w, h){
+  const c = mkCanvas(w, h), g = c.getContext('2d'), m = Math.min(w, h);
+  const gr = g.createLinearGradient(0, 0, w, h);
+  gr.addColorStop(0, '#23305e'); gr.addColorStop(.5, '#1f8a8a'); gr.addColorStop(1, '#f2a65a');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  const cols = ['#ffffff', '#ffff00', '#00ffff', '#00ff00', '#ff00ff', '#ff0000', '#0000ff', '#101010'], bh = h * .12;
+  cols.forEach((col, i) => { g.fillStyle = col; g.fillRect(Math.floor(i * w / 8), h - bh, Math.ceil(w / 8) + 1, bh); });
+  [['#ff4d4d', .20, .60, .14], ['#4dff88', .36, .66, .12], ['#4d88ff', .29, .46, .12]].forEach(([col, x, y, r]) => {
+    g.globalAlpha = .85; g.fillStyle = col; g.beginPath(); g.arc(w * x, h * y, m * r, 0, 7); g.fill();
+  });
+  g.globalAlpha = 1;
+  const sx = Math.round(w * .60), sy = Math.round(h * .46), sw = Math.round(w * .34), sh2 = Math.round(h * .30);
+  g.fillStyle = '#000'; g.fillRect(sx, sy, sw, sh2); g.fillStyle = '#fff';
+  for(let x = 0; x < sw; x++){ const t = x / sw; if(Math.sin(2 * Math.PI * (3 * t + 40 * t * t)) > 0) g.fillRect(sx + x, sy, 1, sh2); }
+  g.fillStyle = '#fff'; g.textAlign = 'center';
+  g.font = `bold ${Math.round(h * .16)}px "Helvetica Neue",Arial,sans-serif`; g.fillText('FOURIER', w * .5, h * .30);
+  g.font = `${Math.round(h * .05)}px sans-serif`; g.fillText('2D FFT playground — color / any aspect ratio', w * .5, h * .38);
+  return c;
+}
+function drawStar(w, h){
+  const c = mkCanvas(w, h), g = c.getContext('2d'), m = Math.min(w, h), cx = w / 2, cy = h / 2, R = m * .48;
+  g.fillStyle = '#f4efe4'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#1b1f3a';
+  const n = 48;
+  for(let i = 0; i < n; i++){ const a0 = i * 2 * Math.PI / n, a1 = a0 + Math.PI / n; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, a0, a1); g.closePath(); g.fill(); }
+  [['#e63946', .92], ['#2a9d8f', .62], ['#f4a261', .34]].forEach(([col, r]) => { g.strokeStyle = col; g.lineWidth = Math.max(1, m * .012); g.beginPath(); g.arc(cx, cy, R * r, 0, 7); g.stroke(); });
+  return c;
+}
+function drawGrating(w, h){
+  const c = mkCanvas(w, h), g = c.getContext('2d'), id = g.createImageData(w, h), d = id.data, T2 = 2 * Math.PI;
+  for(let y = 0; y < h; y++){
+    const v = y / h;
+    for(let x = 0; x < w; x++){
+      const u = x / w, i = (y * w + x) * 4;
+      const blob = Math.exp(-((u - .5) * (u - .5) + (v - .5) * (v - .5)) / .03) * .25;
+      const r = .5 + .38 * Math.cos(T2 * (12 * u + 3 * v)) + blob;
+      const gg = .5 + .38 * Math.cos(T2 * (-5 * u + 17 * v)) + blob;
+      const b = .5 + .38 * Math.cos(T2 * (30 * u - 22 * v)) + blob;
+      d[i] = clamp(r * 255, 0, 255); d[i + 1] = clamp(gg * 255, 0, 255); d[i + 2] = clamp(b * 255, 0, 255); d[i + 3] = 255;
+    }
+  }
+  g.putImageData(id, 0, 0);
+  return c;
+}
+function drawShapes(w, h){
+  const c = mkCanvas(w, h), g = c.getContext('2d'), m = Math.min(w, h);
+  g.fillStyle = '#fafafa'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#222'; g.fillRect(w * .06, h * .08, w * .22, h * .34);
+  g.fillStyle = '#e63946'; g.beginPath(); g.moveTo(w * .40, h * .42); g.lineTo(w * .52, h * .08); g.lineTo(w * .64, h * .42); g.closePath(); g.fill();
+  g.fillStyle = '#2a9d8f'; g.beginPath(); g.arc(w * .76, h * .25, m * .17, 0, 7); g.fill();
+  g.strokeStyle = '#264de4'; g.lineWidth = m * .03; g.beginPath(); g.arc(w * .90, h * .25, m * .10, 0, 7); g.stroke();
+  g.fillStyle = '#111'; g.textAlign = 'left';
+  g.font = `bold ${Math.round(h * .13)}px sans-serif`; g.fillText('フーリエ変換', w * .06, h * .66);
+  g.font = `${Math.round(h * .06)}px monospace`; g.fillText('The quick brown fox jumps over 0123456789', w * .06, h * .82);
+  return c;
+}
+const SAMPLES = [
+  {name:'カラーチャート 16:9', w:1920, h:1080, draw:drawChart},
+  {name:'シーメンススター 1:1', w:1024, h:1024, draw:drawStar},
+  {name:'カラー格子 4:3', w:1600, h:1200, draw:drawGrating},
+  {name:'図形と文字 3:2', w:1800, h:1200, draw:drawShapes},
+];
+function drawMask(kind, w, h){
+  const c = mkCanvas(w, h), g = c.getContext('2d'), m = Math.min(w, h), cx = w / 2, cy = h / 2, WH = '#fff', BL = '#000';
+  const bg = col => { g.fillStyle = col; g.fillRect(0, 0, w, h); };
+  const disc = (col, r) => { g.fillStyle = col; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill(); };
+  switch(kind){
+    case 'fill': bg(WH); break;
+    case 'clear': bg(BL); break;
+    case 'lp-circle': bg(BL); disc(WH, m * .10); break;
+    case 'hp-circle': bg(WH); disc(BL, m * .05); break;
+    case 'bp-ring': bg(BL); disc(WH, m * .22); disc(BL, m * .10); break;
+    case 'lp-square': bg(BL); g.fillStyle = WH; g.fillRect(cx - m * .10, cy - m * .10, m * .2, m * .2); break;
+    case 'hp-square': bg(WH); g.fillStyle = BL; g.fillRect(cx - m * .05, cy - m * .05, m * .1, m * .1); break;
+    case 'bar-h': bg(BL); g.fillStyle = WH; g.fillRect(0, cy - m * .02, w, m * .04); break;
+    case 'bar-v': bg(BL); g.fillStyle = WH; g.fillRect(cx - m * .02, 0, m * .04, h); break;
+  }
+  return c;
+}
+const MASKS = [
+  ['fill', '全通過'], ['clear', '全遮断'], ['lp-circle', 'ローパス(円)'], ['hp-circle', 'ハイパス(円)'], ['bp-ring', 'バンドパス(リング)'],
+  ['lp-square', 'ローパス(矩形)'], ['hp-square', 'ハイパス(矩形)'], ['bar-h', '横軸方向のみ'], ['bar-v', '縦軸方向のみ'],
+];
+
+function clearSel(id){ $(id).querySelectorAll('.thumb').forEach(e => e.classList.remove('sel')); }
+function addThumb(container, canvas, title, onClick){
+  const d = document.createElement('div');
+  d.className = 'thumb'; d.title = title; d.appendChild(canvas);
+  d.addEventListener('click', () => { clearSel(container); d.classList.add('sel'); onClick(); });
+  $(container).appendChild(d);
+  return d;
+}
+let firstSample = null, firstMask = null;
+SAMPLES.forEach((s, i) => {
+  const k = 110 / Math.max(s.w, s.h);
+  const d = addThumb('sample-thumbs', s.draw(Math.max(8, Math.round(s.w * k)), Math.max(8, Math.round(s.h * k))), s.name, () => { setImage(s.draw(s.w, s.h), null); });
+  if(i === 0) firstSample = d;
+});
+MASKS.forEach(([kind, name], i) => {
+  const d = addThumb('mask-thumbs', drawMask(kind, 56, 56), name, () => {
+    if(!ready) return;
+    const h = 512, w = clamp(Math.round(h * S.aspect), 16, 4096);
+    setMaskFromSource(drawMask(kind, w, h)); markMask();
+  });
+  if(i === 0) firstMask = d;
+});
+
+/* ===================================================================== editing (pointer) */
+const edit = {active:false, last:null, value:0};
+function uvOf(e, cv){ const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, 1 - (e.clientY - r.top) / r.height]; }
+function updateCursor(p){ S.cursor = [clamp(p[0], 0, 1), clamp(p[1], 0, 1)]; invalidate('basis'); updateBasisText(); }
+function moveRings(kind, e){
+  const p = panels[kind], r = p.canvas.getBoundingClientRect(), d = 2 * brushR() * r.height;
+  const u = (e.clientX - r.left) / r.width, v = 1 - (e.clientY - r.top) / r.height;
+  const r0 = p.rings[0], r1 = p.rings[1];
+  [r0, r1].forEach(el => { el.style.width = d + 'px'; el.style.height = d + 'px'; el.style.display = 'block'; });
+  r0.style.left = u * r.width + 'px'; r0.style.top = (1 - v) * r.height + 'px';
+  if(ready && $('sym').checked){
+    r1.style.left = (1 + 1 / G.Nx - u) * r.width + 'px'; r1.style.top = (1 - (1 + 1 / G.Ny - v)) * r.height + 'px';
+  } else r1.style.display = 'none';
+}
+function bindEditor(kind){
+  const p = panels[kind], cv = p.canvas;
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointerdown', e => {
+    if(!ready) return;
+    e.preventDefault();
+    cv.setPointerCapture(e.pointerId);
+    let restore = $('mode-restore').checked;
+    if(e.button === 2) restore = !restore;
+    edit.active = true; edit.value = restore ? 1 : 0;
+    const q = uvOf(e, cv);
+    edit.last = q; brushSeg(q, q, edit.value); markMask(); updateCursor(q); moveRings(kind, e);
+  });
+  cv.addEventListener('pointermove', e => {
+    if(!ready) return;
+    updateCursor(uvOf(e, cv)); moveRings(kind, e);
+    if(edit.active && cv.hasPointerCapture(e.pointerId)){
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      for(const ev of (evs.length ? evs : [e])){ const q = uvOf(ev, cv); brushSeg(edit.last, q, edit.value); edit.last = q; }
+      markMask();
+    }
+  });
+  const end = e => { edit.active = false; if(cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId); };
+  cv.addEventListener('pointerup', end);
+  cv.addEventListener('pointercancel', end);
+  cv.addEventListener('pointerleave', () => p.rings.forEach(el => el.style.display = 'none'));
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const sl = $('brush-size');
+    sl.value = clamp(+sl.value + (e.deltaY > 0 ? -3 : 3), 0, 100);
+    onBrushChange(); moveRings(kind, e);
+  }, {passive:false});
+}
+bindEditor('masked'); bindEditor('mask');
+function onBrushChange(){ $('brush-val').textContent = (brushR() * 100).toFixed(1) + '%'; }
+$('brush-size').addEventListener('input', onBrushChange);
+onBrushChange();
+
+/* ===================================================================== lightbox (zoom / pan) */
+const lb = {open:false, kind:'result', z:1, x0:0, y0:0, w:0, h:0, ctx:$('lb-cv').getContext('2d', {alpha:false}), drag:null};
+function clampLB(){ const s = 1 / lb.z; lb.x0 = clamp(lb.x0, 0, 1 - s); lb.y0 = clamp(lb.y0, 0, 1 - s); }
+function sizeLB(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const stageW = window.innerWidth - 24, stageH = window.innerHeight - 70;
+  const cw = Math.max(80, Math.min(stageW, stageH * S.aspect)), ch = cw / S.aspect, cv = $('lb-cv');
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  lb.w = clamp(Math.round(cw * dpr), 64, 4096); lb.h = Math.max(1, Math.round(lb.w / S.aspect));
+  if(cv.width !== lb.w || cv.height !== lb.h){ cv.width = lb.w; cv.height = lb.h; }
+}
+function drawLB(){
+  if(!lb.open || !ready) return;
+  clampLB();
+  const s = 1 / lb.z;
+  renderView(lb.kind, lb.w, lb.h, [lb.x0, lb.y0, s, s]);
+  lb.ctx.drawImage(glc, 0, 0);
+  $('lb-zoom').textContent = `ズーム ${lb.z.toFixed(2)}× ／ 1グリッドpx = ${(lb.w / (G.Nx * s)).toFixed(2)} 画面px`;
+}
+function openLB(kind){
+  if(!ready) return;
+  lb.kind = kind; lb.z = 1; lb.x0 = 0; lb.y0 = 0; lb.open = true;
+  $('lb').hidden = false; $('lb-title').textContent = TITLES[kind];
+  sizeLB(); drawLB();
+}
+function closeLB(){ lb.open = false; $('lb').hidden = true; }
+document.querySelectorAll('[data-lb]').forEach(b => b.addEventListener('click', () => openLB(b.dataset.lb)));
+$('lb-close').addEventListener('click', closeLB);
+$('lb-100').addEventListener('click', () => { lb.z = clamp(G.Nx / lb.w, 1, 64); lb.x0 = 0.5 - 0.5 / lb.z; lb.y0 = 0.5 - 0.5 / lb.z; drawLB(); });
+window.addEventListener('keydown', e => { if(e.key === 'Escape' && lb.open) closeLB(); });
+window.addEventListener('resize', () => { if(lb.open){ sizeLB(); drawLB(); } });
+(() => {
+  const cv = $('lb-cv');
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) / r.width, py = 1 - (e.clientY - r.top) / r.height, s0 = 1 / lb.z;
+    const ix = lb.x0 + px * s0, iy = lb.y0 + py * s0;
+    lb.z = clamp(lb.z * Math.exp(-e.deltaY * 0.0015), 1, 64);
+    const s1 = 1 / lb.z; lb.x0 = ix - px * s1; lb.y0 = iy - py * s1;
+    drawLB();
+  }, {passive:false});
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); lb.drag = [e.clientX, e.clientY]; });
+  cv.addEventListener('pointermove', e => {
+    if(!lb.drag) return;
+    const r = cv.getBoundingClientRect(), s = 1 / lb.z;
+    lb.x0 -= (e.clientX - lb.drag[0]) / r.width * s; lb.y0 += (e.clientY - lb.drag[1]) / r.height * s;
+    lb.drag = [e.clientX, e.clientY]; drawLB();
+  });
+  const end = () => { lb.drag = null; };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  cv.addEventListener('dblclick', () => { lb.z = 1; lb.x0 = 0; lb.y0 = 0; drawLB(); });
+})();
+
+/* ===================================================================== UI wiring */
+$('file-img').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+$('file-mask').addEventListener('change', e => { loadMaskFile(e.target.files[0]); e.target.value = ''; });
+$('btn-url').addEventListener('click', () => { const u = $('url-img').value.trim(); if(u) loadFromURL(u, null, true); });
+$('url-img').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-url').click(); });
+$('res-select').addEventListener('change', e => { S.res = +e.target.value; rebuild(); });
+$('btn-invert').addEventListener('click', () => { if(ready){ invertMask(); clearSel('mask-thumbs'); } });
+$('norm-select').addEventListener('change', e => { set.norm = +e.target.value; invalidate('result'); });
+$('spec-bright').addEventListener('input', e => { set.bright = +e.target.value / 100; invalidate('spectrum', 'masked'); });
+$('spec-mono').addEventListener('change', e => { set.mono = e.target.value === '1'; invalidate('spectrum', 'masked'); });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files[0]; if(f) loadFile(f); });
+window.addEventListener('paste', e => {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for(const it of items) if(it.type.startsWith('image/')){ loadFile(it.getAsFile()); break; }
+});
+
+function savePNG(kind, name, w, h){
+  if(!ready) return;
+  const out = mkCanvas(w, h);
+  renderView(kind, w, h, [0, 0, 1, 1]);
+  out.getContext('2d').drawImage(glc, 0, 0);
+  out.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }, 'image/png');
+}
+$('btn-save-result').addEventListener('click', () => savePNG('result', 'fft_result.png', clamp(G.tw, 1, 8192), clamp(G.th, 1, 8192)));
+$('btn-save-mask').addEventListener('click', () => savePNG('mask', 'fft_mask.png', G.Nx, G.Ny));
+
+/* ===================================================================== start */
+layout();
+firstSample.classList.add('sel'); firstMask.classList.add('sel');
+setImage(SAMPLES[0].draw(SAMPLES[0].w, SAMPLES[0].h), null);
+window.__fft = {ready: () => ready, grid: () => G, state: S};
+})();
+</script>
+</body>
+</html>
