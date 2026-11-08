@@ -74,7 +74,7 @@
   }
   fieldset { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px 10px; display: grid; gap: 6px; }
   legend { padding: 0 6px; font-weight: 600; font-size: 13px; color: #555; }
-  label { display: grid; grid-template-columns: 8.5em 1fr; align-items: center; gap: 8px; font-size: 14px; }
+  label, .field { display: grid; grid-template-columns: 8.5em 1fr; align-items: center; gap: 8px; font-size: 14px; }
   label.inline { display: flex; gap: 6px; }
   label.stack { grid-template-columns: 1fr; }
   .hint { font-size: 12px; color: #666; line-height: 1.5; }
@@ -88,6 +88,24 @@
   button.mini { padding: 2px 8px; font-size: 12px; white-space: nowrap; }
   .drag { outline: 2px dashed var(--accent); outline-offset: 2px; background-color: #eef4ff; }
 
+  /* ページの位置(今のページだけ青) */
+  .strip { display: flex; gap: 3px; margin-bottom: 6px; }
+  .strip .seg { flex: 1 1 0; min-width: 3px; height: 10px; padding: 0; border: 0; border-radius: 3px; background: #bdbdbd; cursor: pointer; }
+  .strip .seg:hover { background: #8f8f8f; filter: none; }
+  .strip .seg.on { background: var(--accent); }
+
+  .libdrop { border: 1px dashed var(--border); border-radius: 6px; padding: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: #555; }
+  .liblist { list-style: none; display: grid; gap: 4px; }
+  .liblist li { display: flex; gap: 4px; align-items: center; font-size: 13px; }
+  .liblist img { width: 44px; height: 30px; object-fit: contain; flex: none; border-radius: 3px; background: conic-gradient(#ddd 25%, #fff 0 50%, #ddd 0 75%, #fff 0) 0 0 / 10px 10px; border: 1px solid var(--border); }
+  .noteimg { display: grid; gap: 6px; border-top: 1px solid var(--border); padding-top: 6px; }
+  .pos9 { display: grid; grid-template-columns: repeat(3, 34px); gap: 3px; }
+  .pos9 button { padding: 0; height: 28px; font-size: 15px; line-height: 1; }
+  .pos9 button.on { background: var(--accent); color: #fff; }
+  .pos9 button:disabled { opacity: .4; cursor: default; }
+  .pos-c { display: grid; place-items: center; font-size: 10px; color: #888; background: #f0f0f0; border-radius: 6px; }
+  .liblist code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   @media (max-width: 1000px) {
     .app { flex-direction: column; gap: 16px; }
     .preview { position: static; width: 100%; flex-basis: auto; }
@@ -99,6 +117,7 @@
 <body>
 <div class="app" id="app">
   <div class="preview" id="preview">
+    <div class="strip" id="strip" aria-label="ページの位置"></div>
     <div class="canvas-wrap"><canvas id="canvas1" width="1280" height="720"></canvas></div>
     <div class="pager">
       <button type="button" id="prev">前へ</button>
@@ -108,6 +127,7 @@
     <div class="tools">
       <button type="button" id="exportZip">画像をまとめてダウンロード(ZIP)</button>
       <button type="button" id="save" class="sub">設定付きテキストを保存</button>
+      <button type="button" id="reset" class="sub">新しく始める</button>
       <button type="button" id="load" class="sub">テキストを読み込む</button>
       <input type="file" id="file" accept=".txt,text/plain" hidden>
       <input type="file" id="imgFile" accept="image/*" hidden>
@@ -134,8 +154,10 @@
         「設定を歌詞欄に書き出す」は、今の設定で@行を書き換えます。
       </p>
       <p class="hint">
-        途中に説明ページを挟むには、「:::説明」の行と「:::」の行で文章を囲みます。
-        空行は段落の区切りで、文中の改行は自動でつなげて折り返します。1ページに入りきらない分は、次の説明ページに続きます。
+        <b>説明ページ</b>: 「:::説明」の行と「:::」の行で文章を囲みます。空行は段落の区切りで、文中の改行は自動でつなげて折り返します。
+        開始行に「画像=名前かURL 位置=右 大きさ=40」を続けると、画像つきになります(位置は 右・左・上・下・右上・右下・左上・左下、大きさは画像の枠の割合%)。説明ページを表示すると、画面の「このページの画像」からも指定できます。<br>
+        <b>背景のみ</b>: 「:::背景」の行で、背景だけのページを挟みます。連の途中(原語の行の間)や、説明の途中にも置けます。<br>
+        <b>連のID</b>: 連の最初の行に「#chorus」と書くと、その連にIDが付きます。あとで「#chorus」だけの連を書くと、同じ連をもう一度表示します。
       </p>
     </fieldset>
 
@@ -143,9 +165,9 @@
       <legend>共通</legend>
       <label>背景色<input type="text" name="bgColor" value="transparent"></label>
       <label data-drop="flg">背景画像
-        <span class="urlbox"><input type="text" name="flg" value="" placeholder="URL(空欄なら背景画像なし)"><button type="button" class="mini" data-pick="flg">ファイル</button><button type="button" class="mini sub" data-clear="flg" title="空にする">×</button></span></label>
+        <span class="urlbox"><input type="text" name="flg" value="" placeholder="URLか画像名(空欄なら背景画像なし)"><button type="button" class="mini" data-pick="flg">ファイル</button><button type="button" class="mini sub" data-clear="flg" title="空にする">×</button></span></label>
       <label class="inline"><input type="checkbox" name="zoom" value="zoom" checked>背景を拡大(画面いっぱいに表示)</label>
-      <p class="hint">背景画像と国旗は、URLの代わりに「ファイル」ボタンかドラッグ&ドロップで手元の画像も使えます(プレビューに落とすと背景画像になります)。手元の画像は設定テキストには保存されません。</p>
+      <p class="hint">背景画像と国旗は、URLのほか、「ファイル」ボタンやドラッグ&ドロップで手元の画像も使えます(プレビューに落とすと背景画像になります)。選んだ画像は下の画像ライブラリに入り、欄にはその画像名が入ります。</p>
       <label>文字色(暗幕は反対色)
         <select name="color">
           <option value="black">black</option>
@@ -160,10 +182,21 @@
         </select></label>
     </fieldset>
 
+    <fieldset>
+      <legend>画像ライブラリ(手元の画像)</legend>
+      <div class="libdrop" data-drop="lib">
+        <button type="button" class="mini" data-pick="lib">画像を追加</button>
+        <span>ここにドラッグ&ドロップ(複数可)</span>
+      </div>
+      <ul class="liblist" id="libList"></ul>
+      <p class="hint" id="libEmpty">まだ画像がありません。</p>
+      <p class="hint">ここに入れた画像は、このブラウザに保存されます。背景・国旗の欄や、説明の「画像=」に、画像名(ファイル名)で指定できます。設定テキストには画像の名前だけが入り、画像そのものは入りません(別の環境で開くときは、同じ名前で追加し直してください)。</p>
+    </fieldset>
+
     <fieldset data-modes="title">
       <legend>タイトル</legend>
       <label data-drop="kokki">国旗
-        <span class="urlbox"><input type="text" name="kokki" value="" placeholder="URL(空欄なら国旗なし)"><button type="button" class="mini" data-pick="kokki">ファイル</button><button type="button" class="mini sub" data-clear="kokki" title="空にする">×</button></span></label>
+        <span class="urlbox"><input type="text" name="kokki" value="" placeholder="URLか画像名(空欄なら国旗なし)"><button type="button" class="mini" data-pick="kokki">ファイル</button><button type="button" class="mini sub" data-clear="kokki" title="空にする">×</button></span></label>
       <label>タイトル<input type="text" name="title" value=""></label>
       <label>タイトルの大きさ
         <span class="range"><input type="range" name="titleSize" min="40" max="320" step="5" value="160"><output></output></span></label>
@@ -188,7 +221,27 @@
     <fieldset data-modes="note">
       <legend>説明ページ</legend>
       <label>文字の大きさ
-        <span class="range"><input type="range" name="noteSize" min="24" max="52" step="2" value="38"><output></output></span></label>
+        <span class="range"><input type="range" name="noteSize" min="24" max="52" step="2" value="40"><output></output></span></label>
+      <div class="noteimg">
+        <b>このページの画像</b>
+        <label>画像<input type="text" id="noteImg" list="libNames" placeholder="画像名かURL(空欄なら画像なし)"></label>
+        <datalist id="libNames"></datalist>
+        <div class="field">位置
+          <span class="pos9" id="notePos">
+            <button type="button" class="sub" data-pos="左上" title="左上">↖</button>
+            <button type="button" class="sub" data-pos="上" title="上">↑</button>
+            <button type="button" class="sub" data-pos="右上" title="右上">↗</button>
+            <button type="button" class="sub" data-pos="左" title="左">←</button>
+            <span class="pos-c">画像</span>
+            <button type="button" class="sub" data-pos="右" title="右">→</button>
+            <button type="button" class="sub" data-pos="左下" title="左下">↙</button>
+            <button type="button" class="sub" data-pos="下" title="下">↓</button>
+            <button type="button" class="sub" data-pos="右下" title="右下">↘</button>
+          </span></div>
+        <label>大きさ
+          <span class="range"><input type="range" id="noteImgSize" min="10" max="80" step="5" value="40"><output></output></span></label>
+        <p class="hint">ここで指定すると、歌詞欄の「:::説明 画像=… 位置=… 大きさ=…」の行が書き換わります。画像を入れると、位置と大きさを選べます。左上・左下・右上・右下は、左・右の帯の上端・下端に画像を寄せます(文章は帯の横)。画像ライブラリの「説明に」でも指定できます。</p>
+      </div>
       <p class="hint">フォントは太字の游明朝です(お使いの環境に無いときは、代わりの明朝体で表示されます)。文字色・暗幕・背景は、ほかのページと共通です。</p>
     </fieldset>
 
@@ -423,7 +476,8 @@ const pageSel = document.getElementById("pageSel");
   for (const line of FONT_LIST) {
     const [value, label = value, flag] = line.split("|");
     const text = flag === "rtl" ? `${label} [RTL]` : label;
-    frag.append(new Option(text, value, false, value === "Times New Roman"));
+    const isDefault = value === "Times New Roman";   // 初期値(「新しく始める」で戻る先)
+    frag.append(new Option(text, value, isDefault, isDefault));
     if (flag === "both") frag.append(new Option(`${label} [RTL]`, value + RTL_SUFFIX));
   }
   $("font").append(frag);
@@ -460,87 +514,201 @@ function readOptions() {
 /* ---------- 歌詞をページに分ける ---------- */
 // 空行で連を区切り、連の行数を3等分(原語/読み/和訳)。
 // 1ページは最大 MAX_ROWS 行で、超えた分は次のページへ(5行→4+1、6行→4+2)。
-// 「:::説明」と「:::」で囲んだ部分は説明ページ(自動で折り返し、入りきらなければ次のページへ)。
+//
+// 特別な行:
+//   #名前            連の最初の行に書くと、その連にIDが付く。「#名前」だけの連を書くと、同じ連をもう一度表示する
+//   :::背景          背景のみのページを挟む。連の途中(原語の行の間)・説明の途中にも書ける
+//   :::説明 …        説明ページの始まり(画像=… 位置=… 大きさ=… を続けられる)。「:::」で終わる
+//
 // 先頭に必ずタイトルページ、末尾に必ず背景のみのページを置く。
+const NOTE_LH = 1.35;                           // 説明の行の高さ(文字サイズの倍率)
+const NOTE_GAP = 30;                            // 説明の文章と画像の間隔
+const NOTE_OPEN = /^[:：]{3}\s*説明(?:\s+(.*))?$/;   // 説明の始まりの行
+const NOTE_CLOSE = /^[:：]{3}\s*$/;             // 説明の終わりの行
+const BG_MARK = /^[:：]{3}\s*背景\s*$/;          // 背景のみのページを挟む行
+const ID_LINE = /^[#＃](\S+)\s*$/;              // 連のID(定義・参照)
+const NOTE_POS = ["右", "左", "上", "下", "右上", "右下", "左上", "左下"];   // 説明の画像の位置
+
+const newStanza = () => ({ type: "stanza", lines: [], breaks: [], id: null });
+
 function buildPages(raw, o) {
   const warnings = [];
-  const blocks = [];                            // { type: "stanza" | "note", lines }
-  let cur = [];
-  let note = null;                              // 説明の囲みの中にいるときの行
+  const blocks = [];                            // { type: "stanza" | "note" | "bg", … }
+  let cur = newStanza();
+  let note = null;                              // 説明の囲みの中にいるときの { segments, params }
+
   const flush = () => {
-    if (cur.length) { blocks.push({ type: "stanza", lines: cur }); cur = []; }
+    if (cur.lines.length || cur.id) {
+      const len = cur.lines.length;
+      const trailing = cur.breaks.filter((p) => p >= len).length;   // 連の最後に置かれた背景
+      cur.breaks = cur.breaks.filter((p) => p < len);
+      blocks.push(cur);
+      for (let i = 0; i < trailing; i++) blocks.push({ type: "bg" });
+    }
+    cur = newStanza();
   };
 
-  for (const line of raw.split(/\r?\n/)) {
+  const rawLines = raw.split(/\r?\n/);
+  for (let li = 0; li < rawLines.length; li++) {
+    const line = rawLines[li];
     if (parseSettingLine(line)) continue;       // @設定の行は歌詞に数えない
     if (note) {
-      if (NOTE_CLOSE.test(line)) { blocks.push({ type: "note", lines: note }); note = null; }
-      else note.push(line);
-    } else if (NOTE_OPEN.test(line)) {
+      if (BG_MARK.test(line)) note.segments.push([]);
+      else if (NOTE_CLOSE.test(line)) { blocks.push(note); note = null; }
+      else note.segments[note.segments.length - 1].push(line);
+      continue;
+    }
+    const open = NOTE_OPEN.exec(line);
+    if (open) {
       flush();
-      note = [];
+      note = { type: "note", segments: [[]], params: parseNoteParams(open[1], warnings), lineNo: li };
+    } else if (BG_MARK.test(line)) {
+      if (cur.lines.length) cur.breaks.push(cur.lines.length);   // 連の途中
+      else { flush(); blocks.push({ type: "bg" }); }
     } else if (NOTE_CLOSE.test(line)) {
       warnings.push("対応する「:::説明」がない「:::」の行があります(無視します)");
     } else if (line.trim() === "") {
       flush();
     } else {
-      cur.push(line);
+      const id = ID_LINE.exec(line);
+      if (id && !cur.lines.length && !cur.id) cur.id = id[1];
+      else cur.lines.push(line);
     }
   }
   if (note) {
     warnings.push("「:::説明」が「:::」で閉じられていません(最後までを説明として扱います)");
-    blocks.push({ type: "note", lines: note });
+    blocks.push(note);
   }
   flush();
+
+  // 連のID(後ろで定義された連も参照できるよう、先に集める)
+  const defs = new Map();
+  for (const b of blocks) {
+    if (b.type !== "stanza" || !b.id || !b.lines.length) continue;
+    if (defs.has(b.id)) warnings.push(`「#${b.id}」が2か所で定義されています(最初のものを使います)`);
+    else defs.set(b.id, b);
+  }
 
   const pages = [{ kind: "title" }];
   let stanzaNo = 0;
   let noteNo = 0;
   for (const blk of blocks) {
-    if (blk.type === "note") {
-      pages.push(...notePages(blk.lines, ++noteNo, o, warnings));
-      continue;
-    }
-    const lines = blk.lines;
+    if (blk.type === "bg") { pages.push({ kind: "bg" }); continue; }
+    if (blk.type === "note") { pages.push(...notePageList(blk, ++noteNo, warnings, o)); continue; }
+
     const no = ++stanzaNo;
+    let src = blk;
+    if (!blk.lines.length) {                    // 「#名前」だけの連 = 参照
+      src = defs.get(blk.id);
+      if (!src) { warnings.push(`連${no}: 「#${blk.id}」という連が見つかりません`); continue; }
+    }
+    pages.push(...stanzaPageList(src, no, blk.id, warnings, src !== blk));
+  }
+  pages.push({ kind: "bg" });
+  return { pages, warnings };
+}
+
+// 1つの連を、ページに分ける(参照のときは警告を出さない)
+function stanzaPageList(src, no, id, warnings, quiet) {
+  const lines = src.lines;
+  if (!quiet) {
     if (lines.some((l) => l.startsWith("@"))) {
       warnings.push(`連${no}: 「@」で始まる行があります(未知の設定名は歌詞として扱われます)`);
     }
     if (lines.length % 3) {
       warnings.push(`連${no}: ${lines.length}行です。3の倍数にしてください(余りの行は無視します)`);
     }
-    const n = Math.floor(lines.length / 3);
-    if (!n) continue;
-    const parts = Math.ceil(n / MAX_ROWS);
-    for (let k = 0; k < parts; k++) {
-      const a = k * MAX_ROWS;
-      const b = Math.min(a + MAX_ROWS, n);
-      pages.push({
-        kind: "main4",
-        stanza: no,
-        part: k + 1,
-        parts,
-        text:  lines.slice(a, b),
-        text2: lines.slice(n + a, n + b),
-        ja:    lines.slice(2 * n + a, 2 * n + b),
-      });
-    }
   }
-  pages.push({ kind: "bg" });
-  return { pages, warnings };
+  const n = Math.floor(lines.length / 3);
+  if (!n) return [];
+
+  // 連の途中の背景は、原語(1段目)の行の間だけに置ける
+  const cuts = new Set();
+  for (const p of src.breaks) {
+    if (p > 0 && p < n) cuts.add(p);
+    else if (!quiet) warnings.push(`連${no}: 連の途中の「:::背景」は、原語(1段目)の行の間に置いてください(無視します)`);
+  }
+  const bounds = [0, ...[...cuts].sort((a, b) => a - b), n];
+
+  const items = [];                             // 行の範囲、または背景
+  for (let i = 0; i < bounds.length - 1; i++) {
+    for (let a = bounds[i]; a < bounds[i + 1]; a += MAX_ROWS) {
+      items.push({ a, b: Math.min(a + MAX_ROWS, bounds[i + 1]) });
+    }
+    if (i < bounds.length - 2) items.push(null);
+  }
+  const parts = items.filter(Boolean).length;
+  let k = 0;
+  return items.map((it) => it === null ? { kind: "bg" } : {
+    kind: "main4",
+    stanza: no,
+    id,
+    part: ++k,
+    parts,
+    text:  lines.slice(it.a, it.b),
+    text2: lines.slice(n + it.a, n + it.b),
+    ja:    lines.slice(2 * n + it.a, 2 * n + it.b),
+  });
 }
 
 /* ---------- 説明ページ ---------- */
-const NOTE_LH = 1.35;                           // 説明の行の高さ(文字サイズの倍率)
-const NOTE_X = 40;                              // 説明の左端
-const NOTE_W = W - 80;                          // 説明の幅(折り返しの基準)
-const NOTE_OPEN = /^[:：]{3}\s*説明\s*$/;        // 説明の始まりの行
-const NOTE_CLOSE = /^[:：]{3}\s*$/;              // 説明の終わりの行
 const NO_START = "、。，．）］｝〕〉》」』】！？・ー…‥ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ々!?.,;:)]}";   // 行頭に置かない文字
 const NO_END = "（［｛〔〈《「『【([{";            // 行末に置かない文字
 const noteFont = (size) => `bold ${size}px "游明朝", "Yu Mincho", "YuMincho", serif`;
 const measureCtx = document.createElement("canvas").getContext("2d");
 const isWide = (ch) => /[⺀-鿿豈-﫿＀-￯]/.test(ch);
+
+// 「:::説明 画像=… 位置=右 大きさ=40」の項目を読み取る。値に空白があるときは "…" か 「…」 で囲む
+function parseNoteParams(str, warnings) {
+  const p = { image: "", pos: "右", size: 40 };
+  const text = (str ?? "").trim();
+  if (!text) return p;
+  const re = /([^\s=＝"「]+)[=＝](?:"([^"]*)"|「([^」]*)」|(\S+))/g;
+  const rest = text.replace(re, (all, key, q1, q2, bare) => {
+    const val = (q1 ?? q2 ?? bare ?? "").trim();
+    if (key === "画像") {
+      p.image = val;
+    } else if (key === "位置") {
+      if (NOTE_POS.includes(val)) p.pos = val;
+      else warnings.push(`説明の「位置=${val}」は使えません(右・左・上・下・右上・右下・左上・左下)`);
+    } else if (key === "大きさ") {
+      const n = Number(val.replace(/%$/, ""));
+      if (Number.isFinite(n)) p.size = Math.min(80, Math.max(10, n));
+      else warnings.push(`説明の「大きさ=${val}」は数字で指定してください(10〜80)`);
+    } else {
+      warnings.push(`説明の「${key}」は使えない項目です(画像・位置・大きさ)`);
+    }
+    return "";
+  });
+  if (rest.trim()) warnings.push(`説明の開始行に読み取れない部分があります: ${rest.trim()}`);
+  return p;
+}
+
+// 文章を置く枠(text)と、画像を置く枠(img)。画像がなければ画面いっぱいに文章を置く。
+//   上・下       : 画面の幅いっぱいの帯に画像を置き、残りに文章
+//   左・右       : 縦いっぱいの帯に画像(縦は中央)を置き、残りに文章
+//   左上・左下・右上・右下: 左・右と同じ帯の、上端・下端に画像を寄せる(文章は帯の横)
+// ax, ay は、枠の中で画像を寄せる向き(0=左/上、0.5=中央、1=右/下)
+function noteLayout(p) {
+  const full = { x: 40, y: 40, w: W - 80, h: H - 80 };
+  if (!p.image) return { text: full, img: null, ax: 0.5, ay: 0.5 };
+  const size = p.size / 100;
+  const side = p.pos.includes("左") ? "左" : p.pos.includes("右") ? "右" : "";
+  const vert = p.pos.includes("上") ? "上" : p.pos.includes("下") ? "下" : "";
+  if (side) {
+    const iw = Math.round(full.w * size);
+    const tw = full.w - iw - NOTE_GAP;
+    const ay = vert === "上" ? 0 : vert === "下" ? 1 : 0.5;
+    return side === "左"
+      ? { img: { x: full.x, y: full.y, w: iw, h: full.h }, text: { x: full.x + iw + NOTE_GAP, y: full.y, w: tw, h: full.h }, ax: 0, ay }
+      : { img: { x: full.x + full.w - iw, y: full.y, w: iw, h: full.h }, text: { x: full.x, y: full.y, w: tw, h: full.h }, ax: 1, ay };
+  }
+  const ih = Math.round(full.h * size);
+  const th = full.h - ih - NOTE_GAP;
+  return vert === "上"
+    ? { img: { x: full.x, y: full.y, w: full.w, h: ih }, text: { x: full.x, y: full.y + ih + NOTE_GAP, w: full.w, h: th }, ax: 0.5, ay: 0 }
+    : { img: { x: full.x, y: full.y + full.h - ih, w: full.w, h: ih }, text: { x: full.x, y: full.y, w: full.w, h: th }, ax: 0.5, ay: 1 };
+}
 
 // 全角文字は1文字ずつ、それ以外(欧文など)は空白までを1語として切り分ける
 function tokenize(text) {
@@ -602,8 +770,25 @@ function joinLines(lines) {
   return out;
 }
 
-// 説明1つ分の行を、ページに分ける(段落の間は1行あける)
-function notePages(lines, no, o, warnings) {
+// 説明1つ分を、ページに分ける(途中の「:::背景」は背景のみのページになる)
+function notePageList(blk, no, warnings, o) {
+  const layout = noteLayout(blk.params);
+  const image = blk.params.image ? { ref: blk.params.image } : null;
+  const out = [];
+  blk.segments.forEach((seg, i) => {
+    if (i > 0) out.push({ kind: "bg" });
+    for (const lines of noteSegmentChunks(seg, layout.text, o)) {
+      out.push({ kind: "note", lines, layout, image, params: blk.params, lineNo: blk.lineNo });
+    }
+  });
+  const notes = out.filter((p) => p.kind === "note");
+  if (!notes.length) warnings.push(`説明${no}: 中身が空です`);
+  notes.forEach((p, k) => { p.noteNo = no; p.part = k + 1; p.parts = notes.length; });
+  return out;
+}
+
+// 1区間の文章を、枠 box に収まる行数ごとのページに分ける(段落の間は1行あける)
+function noteSegmentChunks(lines, box, o) {
   const paras = [];
   let cur = [];
   for (const l of lines) {
@@ -611,15 +796,12 @@ function notePages(lines, no, o, warnings) {
     else cur.push(l);
   }
   if (cur.length) paras.push(joinLines(cur));
-  if (!paras.length) {
-    warnings.push(`説明${no}: 中身が空です`);
-    return [];
-  }
+  if (!paras.length) return [];
 
   measureCtx.font = noteFont(o.noteSize);
   const measure = (s) => measureCtx.measureText(s).width;
-  const wrapped = paras.map((p) => wrapText(p, NOTE_W, measure, o.noteSize));
-  const maxLines = Math.max(1, Math.floor((H - 80) / (o.noteSize * NOTE_LH)));
+  const wrapped = paras.map((p) => wrapText(p, box.w, measure, o.noteSize));
+  const maxLines = Math.max(1, Math.floor(box.h / (o.noteSize * NOTE_LH)));
 
   const chunks = [];
   let page = [];
@@ -637,33 +819,57 @@ function notePages(lines, no, o, warnings) {
     }
   }
   pushPage();
-  return chunks.map((ls, k) => ({ kind: "note", noteNo: no, part: k + 1, parts: chunks.length, lines: ls }));
+  return chunks;
 }
 
-function pageLabel(pg, i) {
+function pageLabel(pg, i, total) {
   if (pg.kind === "title") return `${i}: タイトル`;
-  if (pg.kind === "bg") return `${i}: 背景のみ(最後)`;
+  if (pg.kind === "bg") return `${i}: 背景のみ${i === total - 1 ? "(最後)" : ""}`;
   const split = pg.parts > 1 ? `(${pg.part}/${pg.parts})` : "";
-  if (pg.kind === "note") return `${i}: 説明${pg.noteNo}${split} ${pg.lines.find((l) => l) ?? ""}`;
+  if (pg.kind === "note") {
+    return `${i}: 説明${pg.noteNo}${split}${pg.image ? "[画像]" : ""} ${pg.lines.find((l) => l) ?? ""}`;
+  }
   const head = removeRuby(pg.text[0], false);   // 一行目は省略せず最後まで
-  return `${i}: 連${pg.stanza}${split} ${head}`;
+  return `${i}: 連${pg.stanza}${pg.id ? " #" + pg.id : ""}${split} ${head}`;
 }
 
 /* ---------- ページ切り替え ---------- */
 let pageIndex = 0;
 let pageSig = "";
+const stripEl = document.getElementById("strip");
 
 function syncPageSelect(pages) {
   pageIndex = Math.max(0, Math.min(pageIndex, pages.length - 1));
-  const labels = pages.map(pageLabel);
+  const labels = pages.map((p, i) => pageLabel(p, i, pages.length));
   const sig = labels.join("\n");
   if (sig !== pageSig) {
     pageSig = sig;
     pageSel.replaceChildren(...labels.map((t, i) => new Option(t, String(i))));
+    stripEl.replaceChildren(...labels.map((t, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "seg";
+      b.title = t;
+      b.dataset.i = String(i);
+      return b;
+    }));
   }
   pageSel.value = String(pageIndex);
   pageSel.title = labels[pageIndex];
+  // 今のページだけ青、ほかは灰色
+  [...stripEl.children].forEach((b, i) => {
+    b.classList.toggle("on", i === pageIndex);
+    if (i === pageIndex) b.setAttribute("aria-current", "true");
+    else b.removeAttribute("aria-current");
+  });
 }
+
+stripEl.addEventListener("click", (e) => {
+  const b = e.target.closest(".seg");
+  if (!b) return;
+  pageIndex = Number(b.dataset.i);
+  scheduleUpdate();
+});
 
 function goPage(delta) {
   pageIndex = Math.max(0, pageIndex + delta);   // 上限は update 内で補正
@@ -689,40 +895,120 @@ function loadImage(src) {
     .catch(() => tryLoad(false))
     .catch(() => null);
   imageCache.set(src, p);
+  p.then((img) => { if (!img) imageCache.delete(src); });   // 読めなかったものは覚えない(あとで追加された画像を読めるように)
   return p;
 }
 
-/* ---------- 手元の画像(ファイル選択・ドラッグ&ドロップ) ---------- */
-// 背景画像と国旗は、URLの欄が空のときだけ、手元のファイルを使う。
-// 手元のファイルは設定テキストには保存されない。
-const IMAGE_FIELDS = ["flg", "kokki"];
-const localImages = { flg: null, kokki: null };   // { name, url }
-const defaultPlaceholder = {};
-for (const n of IMAGE_FIELDS) defaultPlaceholder[n] = $(n).placeholder;
+/* ---------- 画像ライブラリ(手元の画像。ブラウザ内に保存される) ---------- */
+// 背景・国旗の欄や、説明の「画像=」には、URLの代わりにここに追加した画像のファイル名を書ける。
+const library = new Map();                      // ファイル名 → { name, url, blob }
 
-function imageSrc(name) {
-  return $(name).value.trim() || localImages[name]?.url || "";
+function resolveImage(v) {
+  const key = (v ?? "").trim();
+  return library.get(key)?.url ?? key;
 }
+const imageSrc = (name) => resolveImage($(name).value);
 
-function clearLocalImage(name) {
-  const cur = localImages[name];
-  if (!cur) return;
-  URL.revokeObjectURL(cur.url);
-  imageCache.delete(cur.url);
-  localImages[name] = null;
-  $(name).placeholder = defaultPlaceholder[name];
-}
-
-function setLocalImage(name, file) {
-  if (!file.type.startsWith("image/")) {
-    notices.push(`「${file.name}」は画像ではありません`);
-    scheduleUpdate();
-    return;
+let dbPromise = null;
+function openDb() {
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve) => {
+      try {
+        const req = indexedDB.open("lyricsImg", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("images", { keyPath: "name" });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      } catch (_) { resolve(null); }
+    });
   }
-  clearLocalImage(name);
-  localImages[name] = { name: file.name, url: URL.createObjectURL(file) };
-  $(name).value = "";
-  $(name).placeholder = `ファイル: ${file.name}`;
+  return dbPromise;
+}
+
+// IndexedDBを使えない環境(プライベートモードなど)でも、メモリ上では動く
+async function dbDo(mode, fn) {
+  const db = await openDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction("images", mode);
+      const req = fn(tx.objectStore("images"));
+      tx.oncomplete = () => resolve(req ? req.result : null);
+      tx.onerror = tx.onabort = () => resolve(null);
+    } catch (_) { resolve(null); }
+  });
+}
+
+function addToLibrary(file) {
+  const name = file.name;
+  const old = library.get(name);
+  if (old) { URL.revokeObjectURL(old.url); imageCache.delete(old.url); }
+  library.set(name, { name, url: URL.createObjectURL(file), blob: file });
+  dbDo("readwrite", (s) => s.put({ name, blob: file }));
+  renderLibrary();
+  return name;
+}
+
+function removeFromLibrary(name) {
+  const it = library.get(name);
+  if (!it) return;
+  URL.revokeObjectURL(it.url);
+  imageCache.delete(it.url);
+  library.delete(name);
+  dbDo("readwrite", (s) => s.delete(name));
+  renderLibrary();
+  scheduleUpdate();
+}
+
+async function restoreLibrary() {
+  const rows = (await dbDo("readonly", (s) => s.getAll())) || [];
+  for (const r of rows) {
+    if (r && r.name && r.blob && !library.has(r.name)) {
+      library.set(r.name, { name: r.name, url: URL.createObjectURL(r.blob), blob: r.blob });
+    }
+  }
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const ul = document.getElementById("libList");
+  const items = [...library.values()].map((it) => {
+    const li = document.createElement("li");
+    const code = document.createElement("code");
+    code.textContent = it.name;
+    code.title = it.name;
+    const thumb = document.createElement("img");   // 小さなプレビュー
+    thumb.src = it.url;
+    thumb.alt = "";
+    li.append(thumb, code);
+    for (const [label, field] of [["背景に", "flg"], ["国旗に", "kokki"], ["説明に", "note"]]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "mini sub";
+      b.textContent = label;
+      b.dataset.use = field;
+      b.dataset.name = it.name;
+      li.append(b);
+    }
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "mini sub";
+    rm.textContent = "×";
+    rm.title = "ライブラリから削除";
+    rm.dataset.remove = it.name;
+    li.append(rm);
+    return li;
+  });
+  ul.replaceChildren(...items);
+  document.getElementById("libNames").replaceChildren(...[...library.keys()].map((n) => new Option(n, n)));   // 説明の画像欄の候補
+  document.getElementById("libEmpty").hidden = items.length > 0;
+}
+
+// 選んだ・落としたファイルをライブラリに入れる。target が背景・国旗なら、その欄に画像名を入れる
+function handleFiles(target, files) {
+  const images = files.filter((f) => f.type.startsWith("image/"));
+  if (images.length < files.length) notices.push("画像ではないファイルは無視しました");
+  const names = images.map(addToLibrary);
+  if ((target === "flg" || target === "kokki") && names.length) $(target).value = names[0];
   scheduleUpdate();
 }
 
@@ -884,12 +1170,25 @@ function drawMain(ctx, o, pg) {
   ctx.globalAlpha = 1;
 }
 
-// 説明ページ: 太字の游明朝で、左寄せ・上下中央に描く(折り返しは buildPages で済んでいる)
-function drawNote(ctx, o, pg) {
-  const shadow = o.color === "black" ? "white" : "black";
-  const lh = o.noteSize * NOTE_LH;
-  const top = (H - pg.lines.length * lh) / 2;
+// 画像を、枠 box にはみ出さないように(縦横比を保って)描く。ax, ay は枠の中で寄せる向き
+function drawContain(ctx, img, box, ax = 0.5, ay = 0.5) {
+  const r = Math.min(box.w / img.width, box.h / img.height);
+  const w = img.width * r;
+  const h = img.height * r;
+  ctx.save();
+  ctx.shadowBlur = 0;
+  ctx.drawImage(img, box.x + (box.w - w) * ax, box.y + (box.h - h) * ay, w, h);
+  ctx.restore();
+}
 
+// 説明ページ: 太字の游明朝で、左寄せ・枠の上下中央に描く(折り返しは buildPages で済んでいる)
+function drawNote(ctx, o, pg, noteImg) {
+  const shadow = o.color === "black" ? "white" : "black";
+  const { text, img } = pg.layout;
+  if (img && noteImg) drawContain(ctx, noteImg, img, pg.layout.ax, pg.layout.ay);
+
+  const lh = o.noteSize * NOTE_LH;
+  const top = text.y + (text.h - pg.lines.length * lh) / 2;
   ctx.font = noteFont(o.noteSize);
   ctx.fillStyle = o.color;
   ctx.shadowColor = shadow;
@@ -898,19 +1197,19 @@ function drawNote(ctx, o, pg) {
   for (const blur of [10, 2]) {                 // 歌詞と同じく、影ありと影なしで2回
     ctx.shadowBlur = blur;
     pg.lines.forEach((l, i) => {
-      if (l) ctx.fillText(l, NOTE_X, top + (i + 0.5) * lh);
+      if (l) ctx.fillText(l, text.x, top + (i + 0.5) * lh);
     });
   }
 }
 
 // 1ページ分を、指定したcanvasのコンテキストに描く(画面表示にも書き出しにも使う)
-function renderPage(ctx, o, pg, bgImg, flagImg) {
+function renderPage(ctx, o, pg, bgImg, flagImg, noteImg) {
   ctx.save();
   drawBackground(ctx, o, bgImg);
   drawDim(ctx, o);
   if (pg.kind === "title") drawTitle(ctx, o, flagImg);
   else if (pg.kind === "main4") drawMain(ctx, o, pg);
-  else if (pg.kind === "note") drawNote(ctx, o, pg);
+  else if (pg.kind === "note") drawNote(ctx, o, pg, noteImg);
   ctx.restore();
 }
 
@@ -927,6 +1226,7 @@ let scheduled = false;
 let notices = [];   // 読み込み時の注意(次の描画で表示)
 
 function scheduleUpdate() {
+  scheduleSave();
   if (scheduled) return;
   scheduled = true;
   requestAnimationFrame(() => {
@@ -955,10 +1255,13 @@ async function update() {
   syncPageSelect(pages);
   const pg = pages[pageIndex];
   applyMode(pg.kind);
+  syncNoteImageUI(pg);
 
-  const [bgImg, flagImg] = await Promise.all([
+  const noteSrc = pg.kind === "note" && pg.image ? resolveImage(pg.image.ref) : "";
+  const [bgImg, flagImg, noteImg] = await Promise.all([
     loadImage(o.flg),
     pg.kind === "title" ? loadImage(o.kokki) : Promise.resolve(null),
+    loadImage(noteSrc),
   ]);
 
   // 待っている間に新しい更新が走っていたら破棄
@@ -966,11 +1269,12 @@ async function update() {
 
   const msgs = [...notices, ...warnings];
   notices = [];
-  if (o.flg && !bgImg) msgs.push("背景画像を読み込めませんでした");
+  if (o.flg && !bgImg) msgs.push("背景画像を読み込めませんでした(URLか、画像ライブラリのファイル名を確認してください)");
   if (pg.kind === "title" && o.kokki && !flagImg) msgs.push("国旗を読み込めませんでした");
+  if (noteSrc && !noteImg) msgs.push(`説明の画像「${pg.image.ref}」を読み込めませんでした`);
   statusEl.textContent = msgs.join("\n");
 
-  renderPage(ctx, o, pg, bgImg, flagImg);
+  renderPage(ctx, o, pg, bgImg, flagImg, noteImg);
 }
 
 /* ---------- スライダーの値表示 ---------- */
@@ -996,7 +1300,6 @@ function applySetting(label, name, value) {
     else notices.push(`@${label} の値「${value}」は選べません`);
   } else {
     el.value = value;
-    if (IMAGE_FIELDS.includes(name) && value.trim()) clearLocalImage(name);   // URLが入ったら手元のファイルは外す
   }
 }
 
@@ -1136,18 +1439,26 @@ function makeZip(files) {
 }
 
 /* ---------- 全ページをまとめて書き出す ---------- */
-// ファイル名: 歌詞ページと説明ページは 曲名_01.png からの連番、背景のみは 曲名_00.png、タイトルは 曲名_thumb.png。
+// ファイル名: 歌詞ページと説明ページは 曲名_01.png からの連番、背景のみ(途中のものも)は 曲名_00.png の1枚、タイトルは 曲名_thumb.png。
 // ZIPには 曲名.txt(設定と歌詞)も入れる。
 async function exportZip() {
   const btn = document.getElementById("exportZip");
   if (btn.disabled) return;
   const label = btn.textContent;
+  const failedNote = new Set();
   btn.disabled = true;
   try {
     const o = readOptions();
     await loadFonts(o);
     const { pages } = buildPages($("lyr").value, o);
     const [bgImg, flagImg] = await Promise.all([loadImage(o.flg), loadImage(o.kokki)]);
+    const noteImgs = new Map();                 // 説明ページの画像(同じ画像は1回だけ読む)
+    for (const pg of pages) {
+      if (pg.kind !== "note" || !pg.image) continue;
+      const src = resolveImage(pg.image.ref);
+      if (!noteImgs.has(src)) noteImgs.set(src, await loadImage(src));
+      if (!noteImgs.get(src)) failedNote.add(pg.image.ref);
+    }
 
     const base = songName();
     const numbered = pages.filter((p) => p.kind === "main4" || p.kind === "note").length;
@@ -1162,14 +1473,17 @@ async function exportZip() {
 
     const files = [];
     let pageNo = 0;
+    let bgDone = false;                         // 背景のみのページはどれも同じ画像なので、_00 を1枚だけ出す
     for (let i = 0; i < pages.length; i++) {
       btn.textContent = `書き出し中 ${i + 1} / ${pages.length}`;
       const pg = pages[i];
+      if (pg.kind === "bg") { if (bgDone) continue; bgDone = true; }
       const name = pg.kind === "title" ? `${base}_thumb.png`
                  : pg.kind === "bg"    ? `${base}_${pad(0)}.png`
                  :                       `${base}_${pad(++pageNo)}.png`;
 
-      renderPage(offCtx, o, pg, bgImg, flagImg);
+      const noteImg = pg.kind === "note" && pg.image ? noteImgs.get(resolveImage(pg.image.ref)) : null;
+      renderPage(offCtx, o, pg, bgImg, flagImg, noteImg);
       const blob = await new Promise((resolve) => off.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("画像を作れませんでした");
       files.push({ name, data: new Uint8Array(await blob.arrayBuffer()) });
@@ -1180,9 +1494,10 @@ async function exportZip() {
     download(makeZip(files), `${base}.zip`);
     if (o.flg && !bgImg) notices.push("背景画像を読み込めなかったので、背景なしで書き出しました");
     if (o.kokki && !flagImg) notices.push("国旗を読み込めなかったので、国旗なしで書き出しました");
+    for (const ref of failedNote) notices.push(`説明の画像「${ref}」を読み込めなかったので、画像なしで書き出しました`);
   } catch (err) {
     notices.push(err && err.name === "SecurityError"
-      ? "外部サイトの画像が使われているため、画像を書き出せません。「ファイル」ボタンで手元の画像を選ぶと書き出せます"
+      ? "外部サイトの画像が使われているため、画像を書き出せません。「ファイル」ボタンや画像ライブラリで手元の画像を使うと書き出せます"
       : `書き出しに失敗しました: ${err && err.message}`);
   } finally {
     btn.disabled = false;
@@ -1191,10 +1506,68 @@ async function exportZip() {
   }
 }
 
+/* ---------- 自動保存と復元 ---------- */
+// 歌詞欄・設定・表示中のページを、ブラウザ(localStorage)に自動で保存し、開き直したときに復元する。
+// 手元の画像は、画像ライブラリ(IndexedDB)に別に保存される。
+const STATE_KEY = "lyricsImg.state.v1";
+let saveTimer = 0;
+let stateReady = false;                         // 復元が終わるまでは保存しない(空の状態で上書きしないため)
+
+function scheduleSave() {
+  if (!stateReady) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveState, 400);
+}
+
+function saveState() {
+  if (!stateReady) return;
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      v: 1,
+      lyr: $("lyr").value,
+      settings: settingsBlock(),
+      page: pageIndex,
+    }));
+  } catch (_) {}
+}
+
+function restoreState() {
+  let raw = null;
+  try { raw = localStorage.getItem(STATE_KEY); } catch (_) {}
+  if (!raw) return false;
+  try {
+    const st = JSON.parse(raw);
+    if (typeof st.lyr !== "string") return false;
+    $("lyr").value = st.lyr;
+    for (const line of String(st.settings ?? "").split("\n")) {
+      const s = parseSettingLine(line);
+      if (s && s.name) applySetting(s.label, s.name, s.value);
+    }
+    pageIndex = Number(st.page) || 0;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function resetAll() {
+  if (!confirm("歌詞と設定を、すべて初期状態に戻します。よろしいですか?(画像ライブラリはそのまま残ります)")) return;
+  form.reset();
+  pageIndex = 0;
+  syncOutputs();
+  notices.push("初期状態に戻しました");
+  scheduleUpdate();
+  saveState();
+}
+
+window.addEventListener("pagehide", saveState);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveState();
+});
+
 /* ---------- イベント ---------- */
-form.addEventListener("input", (e) => {
-  // URLを入力したら、選んでいた手元のファイルは外す
-  for (const n of IMAGE_FIELDS) if (e.target === $(n) && e.target.value.trim()) clearLocalImage(n);
+form.addEventListener("input", () => {
   syncOutputs();
   scheduleUpdate();
 });
@@ -1240,24 +1613,35 @@ let pickTarget = null;
 form.addEventListener("click", (e) => {
   const pick = e.target.closest("[data-pick]");
   const clear = e.target.closest("[data-clear]");
+  const remove = e.target.closest("[data-remove]");
+  const use = e.target.closest("[data-use]");
   if (pick) {
     pickTarget = pick.dataset.pick;
     imgFile.click();
   } else if (clear) {
     $(clear.dataset.clear).value = "";
-    clearLocalImage(clear.dataset.clear);
     scheduleUpdate();
+  } else if (remove) {
+    removeFromLibrary(remove.dataset.remove);
+  } else if (use) {
+    if (use.dataset.use === "note") {
+      editNoteLine({ image: use.dataset.name });   // いま表示している説明ページの画像にする
+    } else {
+      $(use.dataset.use).value = use.dataset.name;
+      scheduleUpdate();
+    }
   }
 });
 imgFile.addEventListener("change", () => {
-  const f = imgFile.files[0];
+  const files = [...imgFile.files];
   imgFile.value = "";
-  if (f && pickTarget) setLocalImage(pickTarget, f);
+  if (files.length) handleFiles(pickTarget, files);
 });
 
 const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes("Files");
 
-function wireDrop(el, name) {
+// target: "flg"(背景)・"kokki"(国旗)・"lib"(ライブラリに追加するだけ)
+function wireDrop(el, target) {
   el.addEventListener("dragover", (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault();
@@ -1268,8 +1652,7 @@ function wireDrop(el, name) {
     el.classList.remove("drag");
     if (!hasFiles(e)) return;
     e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f) setLocalImage(name, f);
+    handleFiles(target, [...e.dataTransfer.files]);
   });
 }
 for (const el of form.querySelectorAll("[data-drop]")) wireDrop(el, el.dataset.drop);
@@ -1281,6 +1664,62 @@ for (const type of ["dragover", "drop"]) {
 }
 
 document.getElementById("exportZip").addEventListener("click", exportZip);
+document.getElementById("reset").addEventListener("click", resetAll);
+
+/* ---------- 説明ページの画像(開始行を書き換えて指定する) ---------- */
+// 歌詞欄の「:::説明 画像=… 位置=… 大きさ=…」の行を、画面の入力欄(画像・位置・大きさ)から書き換える。
+const noteImgInput = document.getElementById("noteImg");
+const noteImgSize = document.getElementById("noteImgSize");
+
+function noteOpenLine(p) {
+  if (!p.image) return ":::説明";
+  const name = /\s/.test(p.image) ? `"${p.image}"` : p.image;
+  return `:::説明 画像=${name} 位置=${p.pos} 大きさ=${p.size}`;
+}
+
+// いま表示している説明ページの開始行を、patch の内容で書き換える
+function editNoteLine(patch) {
+  const { pages } = buildPages($("lyr").value, readOptions());
+  const pg = pages[Math.min(pageIndex, pages.length - 1)];
+  if (!pg || pg.kind !== "note") {
+    notices.push("説明ページを表示してから指定してください");
+    scheduleUpdate();
+    return;
+  }
+  const lines = $("lyr").value.split(/\r?\n/);
+  if (!NOTE_OPEN.test(lines[pg.lineNo] ?? "")) {
+    notices.push("説明の開始行(:::説明)が見つかりません");
+    scheduleUpdate();
+    return;
+  }
+  lines[pg.lineNo] = noteOpenLine({ ...pg.params, ...patch });
+  const top = $("lyr").scrollTop;
+  $("lyr").value = lines.join("\n");
+  $("lyr").scrollTop = top;
+  scheduleUpdate();
+}
+
+// 表示中の説明ページの画像指定を、入力欄に映す
+function syncNoteImageUI(pg) {
+  if (pg.kind !== "note") return;
+  const p = pg.params;
+  const has = !!p.image;
+  if (document.activeElement !== noteImgInput) noteImgInput.value = p.image;
+  if (document.activeElement !== noteImgSize) noteImgSize.value = String(p.size);
+  noteImgSize.parentElement.querySelector("output").value = noteImgSize.value;
+  noteImgSize.disabled = !has;
+  for (const b of document.querySelectorAll("#notePos [data-pos]")) {
+    b.disabled = !has;
+    b.classList.toggle("on", has && b.dataset.pos === p.pos);
+  }
+}
+
+noteImgInput.addEventListener("change", () => editNoteLine({ image: noteImgInput.value.trim() }));
+noteImgSize.addEventListener("input", () => editNoteLine({ size: Number(noteImgSize.value) }));
+document.getElementById("notePos").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pos]");
+  if (b && !b.disabled) editNoteLine({ pos: b.dataset.pos });
+});
 
 /* ---------- プレビューとフォームの境界(ドラッグで幅を変える) ---------- */
 // プレビューを狭めると、歌詞欄などのフォームが広くなる。書き出す画像は1280x720のまま。
@@ -1348,8 +1787,11 @@ splitter.addEventListener("keydown", (e) => {
 });
 window.addEventListener("resize", () => { if (previewW != null) setPreviewWidth(previewW); });
 
-window.addEventListener("load", () => {
+window.addEventListener("load", async () => {
   initPreviewWidth();
+  await restoreLibrary();                       // 画像名の参照より先に、保存済みの画像を読み込む
+  if (restoreState() && $("lyr").value.trim()) notices.push("前回の内容を復元しました(自動保存)");
+  stateReady = true;
   syncOutputs();
   update();
 });
