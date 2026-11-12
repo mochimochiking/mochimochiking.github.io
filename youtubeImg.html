@@ -294,8 +294,8 @@
         <b>発音表記を単語に合わせる</b>: 原語の行を空白で区切った単語ごとに、発音表記の行の同じ順番の語を、その単語の中央に置きます(語の数が合わない行は、警告を出して行ごとの表示にします)。
         発音表記の語にハイフンがあるときは、ハイフンで区切って、単語の中の (|) に順番に合わせます(例: (사람|人)(이|が) に saram-i と書くと、それぞれの中央に置き、ハイフンは表示しません)。ハイフンの数が (|) の数と合わないときは、単語全体の中央に置きます。
         空白で区切らない言語(タイ語など)は、発音表記も空白なしで、ハイフンだけで区切って書きます。<br>
-        <b>形態素の色分け</b>: 隣り合う (|) の色を交互に変えます(白と薄い黄色、黒と紺)。空白や (|) の外の文字をはさむと、最初の色に戻ります。逐語訳と、単語に合わせた発音表記も同じ色になります。縦書きでも使えます。<br>
-        逐語訳や、単語に合わせた発音表記が隣と重なるときは、文字サイズを下げ(元の5割まで)、それでも足りなければ横に詰めます。
+        発音表記の「=」は、区切りにせず、表示するときに空白にします。1つの単語の発音表記に空白を入れたいときに使います(例: 1語の原語に ha=da と書くと、1語として扱い、「ha da」と表示します)。どの表示方法でも同じ書き方で使えます。行ごと(左から順に)の表示と縦書きの右側では、ハイフンも空白にして表示します。<br>
+        <b>形態素の色分け</b>: 隣り合う (|) の色を交互に変えます(白と薄い黄色、黒と紺)。空白や (|) の外の文字をはさむと、最初の色に戻ります。逐語訳と、単語に合わせた発音表記も同じ色になります。縦書きでも使えます。
       </p>
     </fieldset>
   </form>
@@ -1126,9 +1126,7 @@ function drawTitle(ctx, o, flagImg) {
 
 /* ---------- 行の解析(色分け・発音表記の合わせ・縮小) ---------- */
 const colorPair = (o) => [o.color, o.color === "black" ? "#2a3d9e" : "#ffe9a3"];   // 1色目・2色目(白↔薄い黄色、黒↔紺)
-const MIN_SCALE = 0.5;                          // 逐語訳・発音表記を縮める下限(文字サイズの割合)
 const ligate = (s, on) => !on ? s : s.replace(/ffi/g, "ﬃ").replace(/ffl/g, "ﬄ").replace(/fi/g, "ﬁ").replace(/fl/g, "ﬂ").replace(/ff/g, "ﬀ");
-const scaleFont = (font, k) => font.replace(/(\d+(?:\.\d+)?)px/, (_, n) => `${+(Number(n) * k).toFixed(2)}px`);
 
 // 原語の1行を、(単語|意味) の部分と、それ以外に分ける。
 //   disp  : ルビを除いた表示用の文字列(items・words の s,e はこの文字列の位置)
@@ -1187,57 +1185,21 @@ function readingPlan(model, reading) {
     const w = model.words[i];
     const parts = t.split("-");
     if (parts.length > 1 && parts.every(Boolean) && parts.length === w.groups.length) {
-      parts.forEach((p, j) => items.push({ text: p, s: w.groups[j].s, e: w.groups[j].e, color: w.groups[j].color }));
+      parts.forEach((p, j) => items.push({ text: readText(p), s: w.groups[j].s, e: w.groups[j].e, color: w.groups[j].color, hy: true }));
       return;
     }
     if (parts.length > 1 && w.groups.length) {
       warns.push(`「${t}」はハイフンで${parts.length}つに分かれますが、(|)は${w.groups.length}つです(単語全体の中央に置きます)`);
     }
-    items.push({ text: t, s: w.s, e: w.e, color: w.groups[0] ? w.groups[0].color : 0 });
+    items.push({ text: readText(t), s: w.s, e: w.e, color: w.groups[0] ? w.groups[0].color : 0 });
   });
   return { ok: true, items, warns };
 }
 
-// 横に並ぶ文字(中心 cx・幅 w)が、隣と重ならないように縮める。
-// まず文字サイズを下げ(下限 MIN_SCALE)、それでも重なるときは横に詰める。返り値は { s: 文字サイズの倍率, ew: 使える幅 }
-function fitRow(items, gap = 6) {
-  const order = items.map((_, i) => i).sort((a, b) => items[a].cx - items[b].cx);
-  const n = order.length;
-  const w = order.map((i) => items[i].w);
-  const cx = order.map((i) => items[i].cx);
-  const s = w.map(() => 1);
-  const need = (k) => (w[k] * s[k] + w[k + 1] * s[k + 1]) / 2 + gap;
-  for (let pass = 0; pass < 4; pass++) {
-    let changed = false;
-    for (let k = 0; k < n - 1; k++) {
-      const d = cx[k + 1] - cx[k];
-      if (need(k) <= d + 0.01) continue;
-      const [a, b] = w[k] * s[k] >= w[k + 1] * s[k + 1] ? [k, k + 1] : [k + 1, k];   // 長いほうから縮める
-      if (w[a] > 0) {
-        const sa = Math.max(MIN_SCALE, Math.min(s[a], (2 * (d - gap) - w[b] * s[b]) / w[a]));
-        if (sa < s[a]) { s[a] = sa; changed = true; }
-      }
-      if (need(k) > d + 0.01 && w[b] > 0) {
-        const sb = Math.max(MIN_SCALE, Math.min(s[b], (2 * (d - gap) - w[a] * s[a]) / w[b]));
-        if (sb < s[b]) { s[b] = sb; changed = true; }
-      }
-    }
-    if (!changed) break;
-  }
-  const ew = w.map((x, k) => x * s[k]);
-  for (let pass = 0; pass < 3; pass++) {        // それでも重なるときは、横に詰める
-    for (let k = 0; k < n - 1; k++) {
-      const d = cx[k + 1] - cx[k];
-      if ((ew[k] + ew[k + 1]) / 2 + gap <= d + 0.01) continue;
-      const f = (2 * Math.max(d - gap, 1)) / (ew[k] + ew[k + 1]);
-      ew[k] = Math.max(ew[k] * f, 0.3 * w[k] * s[k]);
-      ew[k + 1] = Math.max(ew[k + 1] * f, 0.3 * w[k + 1] * s[k + 1]);
-    }
-  }
-  const out = [];
-  order.forEach((i, k) => { out[i] = { s: s[k], ew: ew[k] }; });
-  return out;
-}
+// 発音表記の「=」は、区切り文字にはせず、表示するときに空白にする
+const readText = (s) => (s ?? "").replace(/=/g, " ");
+// 行ごと(左から順に)の表示では、区切りのハイフンを空白にする
+const readLine = (s) => readText(s).replace(/-/g, " ");
 
 // 文字列の先頭から i 文字目までの幅を測る関数(測った値は覚えておく。呼ぶ前に ctx.font を決めておく)
 function makePos(ctx, disp, ligature) {
@@ -1246,6 +1208,94 @@ function makePos(ctx, disp, ligature) {
     if (!memo.has(i)) memo.set(i, ctx.measureText(ligate(disp.slice(0, i), ligature)).width);
     return memo.get(i);
   };
+}
+
+// 発音表記を単語に合わせるときの、列の計算。
+//   原文を、(|) の部分・それ以外の文字・空白に分けて「区画」にする。
+//   区画の幅は、原文と逐語訳のうち広いほう。発音表記の語がそれより広いときは、その語がかかる区画の両端に余白を足す。
+//   すべての区画を左から(RTLは右から)並べて、原文・逐語訳・発音表記を区画の中央にそろえる。
+//   全体が画面の幅に収まらないときは、位置だけを縮める(原文は横に縮めて描く)。
+//   gloss と phon の cx を書き換え、{ cells, ratio } を返す。
+function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) {
+  const cells = [];
+  for (const it of model.items) {
+    if (it.group) {
+      cells.push({ s: it.s, e: it.e, text: it.base, group: it, color: it.color, gap: false });
+      continue;
+    }
+    let at = it.s;
+    for (const part of model.disp.slice(it.s, it.e).split(/(\s+)/)) {
+      if (!part) continue;
+      cells.push({ s: at, e: at + part.length, text: part, color: it.color, gap: /^\s+$/.test(part) });
+      at += part.length;
+    }
+  }
+
+  ctx.font = mainFont;
+  for (const c of cells) {
+    c.w0 = ctx.measureText(ligate(c.text, o.ligature)).width;
+    c.cw = c.w0;
+    c.padL = 0;
+    c.padR = 0;
+  }
+  for (const g of gloss) {
+    ctx.font = `27px ${g.family}`;
+    const c = cells.find((x) => x.group === g.it);
+    if (c) c.cw = Math.max(c.cw, ctx.measureText(g.text).width);
+  }
+  ctx.font = o.font2;
+  for (const p of phon) {
+    const w = ctx.measureText(p.text).width;
+    p.w = w;
+    p.cells = cells.filter((c) => !c.gap && c.e > p.s && c.s < p.e);
+    if (!p.cells.length) continue;
+    const sum = p.cells.reduce((n, c) => n + c.cw, 0);
+    if (w > sum) {                              // 発音表記のほうが広いときは、両端に余白を足す
+      p.cells[0].padL += (w - sum) / 2;
+      p.cells[p.cells.length - 1].padR += (w - sum) / 2;
+    }
+  }
+
+  // ハイフンで区切った発音表記の隣り合う部分(原文に空白がない)は、発音表記の文字の間を、発音表記のフォントの半角スペース1つぶん以上あける
+  ctx.font = o.font2;
+  const spaceW = ctx.measureText(" ").width;
+  const span = (p) => {                         // 発音表記の語がかかる区画の幅(余白を含む)
+    const a = p.cells[0];
+    const b = p.cells[p.cells.length - 1];
+    return p.cells.reduce((n, c) => n + c.cw, 0) + a.padL + b.padR;
+  };
+  for (let k = 0; k + 1 < phon.length; k++) {
+    const pa = phon[k];
+    const pb = phon[k + 1];
+    if (!pa.hy || !pb.hy || !pa.cells.length || !pb.cells.length) continue;
+    const ia = cells.indexOf(pa.cells[pa.cells.length - 1]);
+    const ib = cells.indexOf(pb.cells[0]);
+    const between = cells.slice(ia + 1, ib);
+    if (ib <= ia || between.some((c) => c.gap)) continue;
+    const gap = (span(pa) - pa.w) / 2 + between.reduce((n, c) => n + c.cw + c.padL + c.padR, 0) + (span(pb) - pb.w) / 2;
+    if (gap < spaceW) pa.cells[pa.cells.length - 1].padR += spaceW - gap;
+  }
+
+  let x = 0;
+  for (const c of cells) {
+    x += c.padL;
+    c.x0 = x;
+    x += c.cw + c.padR;
+  }
+  const ratio = x <= maxW ? 1 : maxW / x;
+  const sx = (v) => o.rtl ? W - 80 - v * ratio : 40 + v * ratio;
+  for (const c of cells) c.cx = sx(c.x0 + c.cw / 2);
+  for (const g of gloss) {
+    const c = cells.find((k) => k.group === g.it);
+    if (c) g.cx = c.cx;
+  }
+  for (const p of phon) {
+    if (!p.cells.length) continue;
+    const a = p.cells[0];
+    const b = p.cells[p.cells.length - 1];
+    p.cx = sx((a.x0 + b.x0 + b.cw) / 2);
+  }
+  return { cells, ratio };
 }
 
 function drawMain(ctx, o, pg) {
@@ -1258,7 +1308,6 @@ function drawMain(ctx, o, pg) {
   const n = pg.text.length;
   const rows = Array.from({ length: n }, (_, i) => i);
   const pair = colorPair(o);
-  const edge = (x, w) => Math.min(Math.max(x, 10 + w / 2), W - 10 - w / 2);   // 画面の外にはみ出さない
 
   /* 行ごとの下ごしらえ: 位置と幅を、先にまとめて測る */
   const info = rows.map((r) => {
@@ -1285,22 +1334,15 @@ function drawMain(ctx, o, pg) {
       if (plan.ok) phon = plan.items.map((p) => ({ ...p, cx: mid(p.s, p.e) }));
     }
 
-    for (const g of gloss) {                    // 逐語訳の幅(ここから先は、位置を測らない)
+    for (const g of gloss) {                    // 逐語訳の表示用の文字とフォント
       g.text = g.it.ruby;
       g.family = `"BIZ UDP明朝"`;
       const b = /^【(.*)】$/.exec(g.text);
       if (b) { g.text = b[1]; g.family = `"${JP_FONT}"`; }
       g.color = g.it.color;
-      ctx.font = `27px ${g.family}`;
-      g.w = ctx.measureText(g.text).width;
     }
-    fitRow(gloss).forEach((f, k) => Object.assign(gloss[k], f));
-    if (phon) {
-      ctx.font = o.font2;
-      for (const p of phon) p.w = ctx.measureText(p.text).width;
-      fitRow(phon).forEach((f, k) => Object.assign(phon[k], f));
-    }
-    return { runs, gloss, phon };
+    const layout = phon ? wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) : null;
+    return { runs, gloss, phon, layout };
   });
 
   ctx.shadowColor = shadow;
@@ -1318,15 +1360,15 @@ function drawMain(ctx, o, pg) {
       if (phon) {                               // 単語の位置に合わせる
         ctx.textAlign = "center";
         for (const p of phon) {
-          ctx.font = scaleFont(o.font2, p.s);
+          ctx.font = o.font2;
           ctx.fillStyle = pair[p.color];
-          ctx.fillText(p.text, edge(p.cx, p.ew), y, p.ew + 0.5);
+          ctx.fillText(p.text, p.cx, y);
         }
         ctx.textAlign = "left";
       } else {                                  // 行ごと(左から順に)
         ctx.font = o.font2;
         ctx.fillStyle = pair[0];
-        ctx.fillText(rm(pg.text2[r]), 42.5, y, maxW);
+        ctx.fillText(readLine(rm(pg.text2[r])), 42.5, y, maxW);
       }
     }
 
@@ -1343,19 +1385,18 @@ function drawMain(ctx, o, pg) {
       for (const g of info[r].gloss) {
         ctx.textAlign = "center";
         ctx.shadowBlur = 2;
-        ctx.font = `${+(27 * g.s).toFixed(2)}px ${g.family}`;
+        ctx.font = `27px ${g.family}`;
         ctx.fillStyle = pair[g.color];
         const baseY = (12 + 176 * r + o.spacing4) - o.fontSize + o.spacing + o.spacing2;
-        const x = edge(g.cx, g.ew);
-        const mw = g.ew + 0.5;
+        const x = g.cx;
         if (rtl) {
-          ctx.fillText(g.text, x, baseY + 20, mw);
-          ctx.fillText(g.text, x, baseY + 20, mw);
+          ctx.fillText(g.text, x, baseY + 20);
+          ctx.fillText(g.text, x, baseY + 20);
         } else {
           ctx.lineWidth = 1;
           ctx.strokeStyle = shadow;
-          ctx.strokeText(g.text, x, baseY, mw);
-          ctx.fillText(g.text, x, baseY, mw);
+          ctx.strokeText(g.text, x, baseY);
+          ctx.fillText(g.text, x, baseY);
         }
       }
     }
@@ -1377,8 +1418,17 @@ function drawMain(ctx, o, pg) {
           x = 40;
           y = 70 + 180 * r + o.spacing + o.spacing2 + ROW_OFFSET[r];
         }
-        const { runs } = info[r];
-        if (runs.length <= 1) {
+        const { runs, layout } = info[r];
+        if (layout) {                           // 発音表記を単語に合わせるとき: 区画の中央に、1つずつ描く
+          ctx.textAlign = "center";
+          for (const c of layout.cells) {
+            if (c.gap || !c.text) continue;
+            ctx.fillStyle = pair[c.color];
+            if (layout.ratio < 1) ctx.fillText(ligate(c.text, o.ligature), c.cx, y, c.w0 * layout.ratio);
+            else ctx.fillText(ligate(c.text, o.ligature), c.cx, y);
+          }
+          ctx.textAlign = "left";
+        } else if (runs.length <= 1) {
           ctx.fillStyle = pair[runs.length ? runs[0].color : 0];
           ctx.fillText(str, x, y, maxW);
         } else {                                // 色の区間ごとに、同じ行を切り抜いて描き直す(字の形はそのまま)
@@ -1520,10 +1570,7 @@ function drawMainVertical(ctx, o, pg) {
       g.family = `"BIZ UDP明朝"`;
       const b = /^【(.*)】$/.exec(g.text);
       if (b) { g.text = b[1]; g.family = `"${JP_FONT}"`; }
-      ctx.font = `${rs}px ${g.family}`;
-      g.w = vCells(ctx, g.text, rs).reduce((s, c) => s + c.len, 0);
     }
-    fitRow(gloss, 4).forEach((f, k) => { gloss[k].s = f.s; });   // 縦書きは、文字サイズを下げるだけ
     return { runs, gloss };
   });
 
@@ -1537,7 +1584,7 @@ function drawMainVertical(ctx, o, pg) {
     for (const r of rows) {
       const y = 90 + 180 * r + o.spacing + ROW_OFFSET[r];
       ctx.font = o.font2;
-      ctx.fillText(rmH(pg.text2[r]), rightX, y, rightW);
+      ctx.fillText(readLine(rmH(pg.text2[r])), rightX, y, rightW);
       ctx.font = `${JA_SIZE}px "Times New Roman", "${JP_FONT}", "Source Han Serif K"`;
       ctx.fillText(rmH(pg.ja[r]), rightX, y + 46, rightW);
     }
@@ -1552,7 +1599,7 @@ function drawMainVertical(ctx, o, pg) {
       ctx.save();
       ctx.shadowBlur = 2;
       for (const g of gloss) {
-        const size = +(rs * g.s).toFixed(2);
+        const size = rs;
         ctx.font = `${size}px ${g.family}`;
         ctx.fillStyle = pair[g.color];
         ctx.lineWidth = 1;
