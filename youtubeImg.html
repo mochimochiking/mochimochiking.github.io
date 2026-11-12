@@ -106,6 +106,19 @@
   .pos-c { display: grid; place-items: center; font-size: 10px; color: #888; background: #f0f0f0; border-radius: 6px; }
   .liblist code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+  /* 全ページ一覧 */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50; display: grid; place-items: center; padding: 16px; }
+  .ov-box { background: var(--panel); border-radius: 10px; width: min(1240px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+  .ov-head { display: flex; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .ov-head b { flex: 1; }
+  .ov-warn { white-space: pre-line; color: #b91c1c; font-size: 13px; padding: 6px 14px; max-height: 8em; overflow: auto; }
+  .ov-warn:empty { display: none; }
+  .ov-grid { overflow: auto; padding: 12px 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .ov-card { display: grid; gap: 4px; padding: 4px; background: #f6f6f6; color: #222; border: 2px solid transparent; border-radius: 8px; text-align: left; font-size: 12px; line-height: 1.35; align-content: start; }
+  .ov-card.cur { border-color: var(--accent); }
+  .ov-card canvas { background: conic-gradient(#ddd 25%, #fff 0 50%, #ddd 0 75%, #fff 0) 0 0 / 16px 16px; border: 1px solid var(--border); }
+  .ov-card span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+
   @media (max-width: 1000px) {
     .app { flex-direction: column; gap: 16px; }
     .preview { position: static; width: 100%; flex-basis: auto; }
@@ -126,6 +139,7 @@
     </div>
     <div class="tools">
       <button type="button" id="exportZip">画像をまとめてダウンロード(ZIP)</button>
+      <button type="button" id="overviewBtn" class="sub">全ページ一覧</button>
       <button type="button" id="save" class="sub">設定付きテキストを保存</button>
       <button type="button" id="reset" class="sub">新しく始める</button>
       <button type="button" id="load" class="sub">テキストを読み込む</button>
@@ -172,7 +186,6 @@
         <select name="color">
           <option value="black">black</option>
           <option value="white" selected>white</option>
-          <option value="yellow">yellow</option>
         </select></label>
       <label>暗幕の濃さ(alpha)
         <select name="alpha">
@@ -208,7 +221,7 @@
     <fieldset data-modes="title main4">
       <legend>文字</legend>
       <label>フォント<select name="font"></select></label>
-      <p class="hint">[RTL]が付いたフォントは、歌詞を右から左(右寄せ)で表示します。Calibri・Segoe UI・Times New Roman は、左から右用と[RTL]用の2つがあります。</p>
+      <p class="hint">[RTL]が付いたフォントは、歌詞を右から左(右寄せ)で表示します。[縦]が付いたフォント(モンゴル文字・満州文字)は、1段目の「(単語|意味)」の行を縦書きにして左側に、発音表記と和訳を横書きで右側に置きます。Calibri・Segoe UI・Times New Roman は、左から右用と[RTL]用の2つがあります。</p>
       <label>太さ
         <span class="range"><input type="range" name="isBold" min="100" max="900" step="100" value="400"><output></output></span></label>
       <label>イタリック
@@ -265,10 +278,35 @@
         <span class="range"><input type="range" name="spacing" min="-25" max="5" step="5" value="-5"><output></output></span></label>
       <label>歌詞の縦位置
         <span class="range"><input type="range" name="spacing2" min="-15" max="30" step="5" value="5"><output></output></span></label>
-      <label>ルビの位置
+      <label data-when="horizontal">ルビの位置
         <span class="range"><input type="range" name="spacing4" min="60" max="115" step="5" value="85"><output></output></span></label>
+      <label data-when="horizontal">発音表記の位置
+        <select name="readMode">
+          <option value="行" selected>行(左から順に)</option>
+          <option value="単語">単語の位置に合わせる</option>
+        </select></label>
+      <label>形態素の色分け
+        <select name="segColor">
+          <option value="なし" selected>なし</option>
+          <option value="あり">あり(隣り合う(|)で色を交互に)</option>
+        </select></label>
+      <p class="hint">
+        <b>発音表記を単語に合わせる</b>: 原語の行を空白で区切った単語ごとに、発音表記の行の同じ順番の語を、その単語の中央に置きます(語の数が合わない行は、警告を出して行ごとの表示にします)。
+        発音表記の語にハイフンがあるときは、ハイフンで区切って、単語の中の (|) に順番に合わせます(例: (사람|人)(이|が) に saram-i と書くと、それぞれの中央に置き、ハイフンは表示しません)。ハイフンの数が (|) の数と合わないときは、単語全体の中央に置きます。
+        空白で区切らない言語(タイ語など)は、発音表記も空白なしで、ハイフンだけで区切って書きます。<br>
+        <b>形態素の色分け</b>: 隣り合う (|) の色を交互に変えます(白と薄い黄色、黒と紺)。空白や (|) の外の文字をはさむと、最初の色に戻ります。逐語訳と、単語に合わせた発音表記も同じ色になります。縦書きでも使えます。<br>
+        逐語訳や、単語に合わせた発音表記が隣と重なるときは、文字サイズを下げ(元の5割まで)、それでも足りなければ横に詰めます。
+      </p>
     </fieldset>
   </form>
+</div>
+
+<div class="overlay" id="overview" hidden>
+  <div class="ov-box" role="dialog" aria-label="全ページ一覧">
+    <div class="ov-head"><b>全ページ一覧</b><span id="ovCount"></span><button type="button" class="sub" id="ovClose">閉じる</button></div>
+    <div class="ov-warn" id="ovWarn"></div>
+    <div class="ov-grid" id="ovGrid"></div>
+  </div>
 </div>
 
 <script>
@@ -304,6 +342,8 @@ const SETTINGS = [
   ["全体の縦位置", "spacing"],
   ["歌詞の縦位置", "spacing2"],
   ["ルビの位置", "spacing4"],
+  ["発音表記", "readMode"],
+  ["区切り色", "segColor"],
   ["説明サイズ", "noteSize"],
 ];
 const SETTING_BY_LABEL = new Map(SETTINGS);
@@ -320,6 +360,7 @@ function parseSettingLine(line) {
 
 // "値|表示名|印" (表示名は省略すると値と同じ)
 // 印: rtl=右から左に書く文字体系のフォント / both=左右どちらにも使う(RTL用の「値 (RTL)」も自動で追加)
+//     vertical=縦書きの文字体系のフォント(モンゴル文字・満州文字。1段目を縦書きにする)
 const FONT_LIST = `Nunito
 Arial Rounded MT
 Sofia Sans|Sofia Sans(ブルガリア語)
@@ -414,6 +455,8 @@ Taviraj|Taviraj(タイ語)
 Microsoft Himalaya|Microsoft Himalaya(チベット)
 Jomolhari|Jomolhari(チベット)
 Noto Serif Tibetan|Noto Serif Tibetan(チベット)
+Mongolian Baiti|Mongolian Baiti(モンゴル文字・満州文字)|vertical
+Noto Sans Mongolian|Noto Sans Mongolian(モンゴル文字・満州文字)|vertical
 FangSong|FangSong(中華)
 LXGW WenKai|LXGW WenKai(中華)
 LXGW WenKai Mono TC|LXGW WenKai Mono TC(台湾)
@@ -459,6 +502,9 @@ const RTL_SUFFIX = " (RTL)";                    // 左右どちらにも使う�
 const FONT_RTL = new Set(
   FONT_LIST.map((l) => l.split("|")).filter((p) => p[2] === "rtl").map((p) => p[0])
 );
+const FONT_VERT = new Set(
+  FONT_LIST.map((l) => l.split("|")).filter((p) => p[2] === "vertical").map((p) => p[0])
+);
 const isRtlFont = (key) => FONT_RTL.has(key) || key.endsWith(RTL_SUFFIX);
 const fontFamily = (key) => key.endsWith(RTL_SUFFIX) ? key.slice(0, -RTL_SUFFIX.length) : key;
 
@@ -475,7 +521,7 @@ const pageSel = document.getElementById("pageSel");
   const frag = document.createDocumentFragment();
   for (const line of FONT_LIST) {
     const [value, label = value, flag] = line.split("|");
-    const text = flag === "rtl" ? `${label} [RTL]` : label;
+    const text = flag === "rtl" ? `${label} [RTL]` : flag === "vertical" ? `${label} [縦]` : label;
     const isDefault = value === "Times New Roman";   // 初期値(「新しく始める」で戻る先)
     frag.append(new Option(text, value, isDefault, isDefault));
     if (flag === "both") frag.append(new Option(`${label} [RTL]`, value + RTL_SUFFIX));
@@ -499,6 +545,7 @@ function readOptions() {
     font:      fontFamily(v("font")),
     font2:     v("font2"),
     rtl:       isRtlFont(v("font")),
+    vertical:  FONT_VERT.has(v("font")),
     italic:    v("italic") === "yes" ? "italic" : "",
     color:     v("color"),
     alpha:     Number(v("alpha")),
@@ -507,6 +554,8 @@ function readOptions() {
     spacing:   Number(v("spacing")),
     spacing2:  Number(v("spacing2")),
     spacing4:  Number(v("spacing4")),
+    readWord:  v("readMode") === "単語",
+    seg:       v("segColor") === "あり",
     noteSize:  Number(v("noteSize")),
   };
 }
@@ -602,14 +651,14 @@ function buildPages(raw, o) {
       src = defs.get(blk.id);
       if (!src) { warnings.push(`連${no}: 「#${blk.id}」という連が見つかりません`); continue; }
     }
-    pages.push(...stanzaPageList(src, no, blk.id, warnings, src !== blk));
+    pages.push(...stanzaPageList(src, no, blk.id, warnings, src !== blk, o));
   }
   pages.push({ kind: "bg" });
   return { pages, warnings };
 }
 
 // 1つの連を、ページに分ける(参照のときは警告を出さない)
-function stanzaPageList(src, no, id, warnings, quiet) {
+function stanzaPageList(src, no, id, warnings, quiet, o) {
   const lines = src.lines;
   if (!quiet) {
     if (lines.some((l) => l.startsWith("@"))) {
@@ -621,6 +670,16 @@ function stanzaPageList(src, no, id, warnings, quiet) {
   }
   const n = Math.floor(lines.length / 3);
   if (!n) return [];
+
+  // 発音表記を単語に合わせるとき、行ごとに合うか確かめる(縦書きでは合わせない)
+  if (!quiet && o && o.readWord && !o.vertical) {
+    for (let i = 0; i < n; i++) {
+      const plan = readingPlan(parseLine(lines[i], false), lines[n + i]);
+      const head = `連${no} ${i + 1}行目`;
+      if (!plan.ok) warnings.push(`${head}: ${plan.msg}`);
+      else for (const w of plan.warns) warnings.push(`${head}: ${w}`);
+    }
+  }
 
   // 連の途中の背景は、原語(1段目)の行の間だけに置ける
   const cuts = new Set();
@@ -1015,15 +1074,7 @@ function handleFiles(target, files) {
 /* ---------- テキスト処理 ---------- */
 function removeRuby(str, ligature) {
   if (str === undefined) return "";
-  let s = str.replace(/\((.*?)\|.*?\)/g, "$1");
-  if (ligature) {
-    s = s.replace(/ffi/g, "ﬃ")
-         .replace(/ffl/g, "ﬄ")
-         .replace(/fi/g, "ﬁ")
-         .replace(/fl/g, "ﬂ")
-         .replace(/ff/g, "ﬀ");
-  }
-  return s;
+  return ligate(str.replace(/\((.*?)\|.*?\)/g, "$1"), ligature);
 }
 
 /* ---------- 描画 ---------- */
@@ -1073,7 +1124,132 @@ function drawTitle(ctx, o, flagImg) {
   }
 }
 
+/* ---------- 行の解析(色分け・発音表記の合わせ・縮小) ---------- */
+const colorPair = (o) => [o.color, o.color === "black" ? "#2a3d9e" : "#ffe9a3"];   // 1色目・2色目(白↔薄い黄色、黒↔紺)
+const MIN_SCALE = 0.5;                          // 逐語訳・発音表記を縮める下限(文字サイズの割合)
+const ligate = (s, on) => !on ? s : s.replace(/ffi/g, "ﬃ").replace(/ffl/g, "ﬄ").replace(/fi/g, "ﬁ").replace(/fl/g, "ﬂ").replace(/ff/g, "ﬀ");
+const scaleFont = (font, k) => font.replace(/(\d+(?:\.\d+)?)px/, (_, n) => `${+(Number(n) * k).toFixed(2)}px`);
+
+// 原語の1行を、(単語|意味) の部分と、それ以外に分ける。
+//   disp  : ルビを除いた表示用の文字列(items・words の s,e はこの文字列の位置)
+//   items : { s, e, group, base, ruby, color }  color は 0=1色目 / 1=2色目(seg が偽なら常に0)
+//           隣り合う (|) は色を交互にし、空白や(|)の外の文字をはさむと1色目に戻る
+//   runs  : 同じ色が続く区間 { s, e, color }
+//   words : 空白で区切った単語 { s, e, groups }
+function parseLine(line, seg) {
+  const items = [];
+  let disp = "";
+  let last = 0;
+  let prev = -1;
+  const plain = (t) => {
+    if (!t) return;
+    items.push({ s: disp.length, e: disp.length + t.length, group: false, color: 0 });
+    disp += t;
+    prev = -1;
+  };
+  for (const m of line.matchAll(/\((.*?)\|(.*?)\)/g)) {
+    plain(line.slice(last, m.index));
+    const color = seg && prev >= 0 ? 1 - prev : 0;
+    items.push({ s: disp.length, e: disp.length + m[1].length, group: true, base: m[1], ruby: m[2], color });
+    disp += m[1];
+    prev = color;
+    last = m.index + m[0].length;
+  }
+  plain(line.slice(last));
+
+  const runs = [];
+  for (const it of items) {
+    const r = runs[runs.length - 1];
+    if (r && r.color === it.color) r.e = it.e;
+    else runs.push({ s: it.s, e: it.e, color: it.color });
+  }
+  const words = [...disp.matchAll(/\S+/g)].map((m) => ({
+    s: m.index,
+    e: m.index + m[0].length,
+    groups: items.filter((it) => it.group && it.e > it.s && it.s < m.index + m[0].length && it.e > m.index),
+  }));
+  return { disp, items, runs, words };
+}
+
+// 発音表記の行を、原語の単語に合わせるための計画。
+//   空白で区切った語を、原語の単語と同じ順番で対応させる(数が違えば ok:false)。
+//   語にハイフンがあり、その数が単語の中の (|) の数と同じなら、ハイフンで区切って各 (|) に合わせる(ハイフンは描かない)。
+//   数が合わなければ、単語全体の中央に置く(書いたまま。警告を出す)。
+function readingPlan(model, reading) {
+  const text = (reading ?? "").trim();
+  const toks = text ? text.split(/\s+/) : [];
+  if (toks.length !== model.words.length) {
+    return { ok: false, msg: `発音表記が${toks.length}語、原語が${model.words.length}語で、数が合いません(行ごとの表示にします)` };
+  }
+  const items = [];
+  const warns = [];
+  toks.forEach((t, i) => {
+    const w = model.words[i];
+    const parts = t.split("-");
+    if (parts.length > 1 && parts.every(Boolean) && parts.length === w.groups.length) {
+      parts.forEach((p, j) => items.push({ text: p, s: w.groups[j].s, e: w.groups[j].e, color: w.groups[j].color }));
+      return;
+    }
+    if (parts.length > 1 && w.groups.length) {
+      warns.push(`「${t}」はハイフンで${parts.length}つに分かれますが、(|)は${w.groups.length}つです(単語全体の中央に置きます)`);
+    }
+    items.push({ text: t, s: w.s, e: w.e, color: w.groups[0] ? w.groups[0].color : 0 });
+  });
+  return { ok: true, items, warns };
+}
+
+// 横に並ぶ文字(中心 cx・幅 w)が、隣と重ならないように縮める。
+// まず文字サイズを下げ(下限 MIN_SCALE)、それでも重なるときは横に詰める。返り値は { s: 文字サイズの倍率, ew: 使える幅 }
+function fitRow(items, gap = 6) {
+  const order = items.map((_, i) => i).sort((a, b) => items[a].cx - items[b].cx);
+  const n = order.length;
+  const w = order.map((i) => items[i].w);
+  const cx = order.map((i) => items[i].cx);
+  const s = w.map(() => 1);
+  const need = (k) => (w[k] * s[k] + w[k + 1] * s[k + 1]) / 2 + gap;
+  for (let pass = 0; pass < 4; pass++) {
+    let changed = false;
+    for (let k = 0; k < n - 1; k++) {
+      const d = cx[k + 1] - cx[k];
+      if (need(k) <= d + 0.01) continue;
+      const [a, b] = w[k] * s[k] >= w[k + 1] * s[k + 1] ? [k, k + 1] : [k + 1, k];   // 長いほうから縮める
+      if (w[a] > 0) {
+        const sa = Math.max(MIN_SCALE, Math.min(s[a], (2 * (d - gap) - w[b] * s[b]) / w[a]));
+        if (sa < s[a]) { s[a] = sa; changed = true; }
+      }
+      if (need(k) > d + 0.01 && w[b] > 0) {
+        const sb = Math.max(MIN_SCALE, Math.min(s[b], (2 * (d - gap) - w[a] * s[a]) / w[b]));
+        if (sb < s[b]) { s[b] = sb; changed = true; }
+      }
+    }
+    if (!changed) break;
+  }
+  const ew = w.map((x, k) => x * s[k]);
+  for (let pass = 0; pass < 3; pass++) {        // それでも重なるときは、横に詰める
+    for (let k = 0; k < n - 1; k++) {
+      const d = cx[k + 1] - cx[k];
+      if ((ew[k] + ew[k + 1]) / 2 + gap <= d + 0.01) continue;
+      const f = (2 * Math.max(d - gap, 1)) / (ew[k] + ew[k + 1]);
+      ew[k] = Math.max(ew[k] * f, 0.3 * w[k] * s[k]);
+      ew[k + 1] = Math.max(ew[k + 1] * f, 0.3 * w[k + 1] * s[k + 1]);
+    }
+  }
+  const out = [];
+  order.forEach((i, k) => { out[i] = { s: s[k], ew: ew[k] }; });
+  return out;
+}
+
+// 文字列の先頭から i 文字目までの幅を測る関数(測った値は覚えておく。呼ぶ前に ctx.font を決めておく)
+function makePos(ctx, disp, ligature) {
+  const memo = new Map();
+  return (i) => {
+    if (!memo.has(i)) memo.set(i, ctx.measureText(ligate(disp.slice(0, i), ligature)).width);
+    return memo.get(i);
+  };
+}
+
 function drawMain(ctx, o, pg) {
+  if (o.vertical) { drawMainVertical(ctx, o, pg); return; }
   const shadow = o.color === "black" ? "white" : "black";
   const rtl = o.rtl;                            // 右から左に書くフォントか
   const maxW = W - 80;
@@ -1081,6 +1257,51 @@ function drawMain(ctx, o, pg) {
   const mainFont = `${o.italic} ${o.isBold} ${o.fontSize}px "${o.font}"`;
   const n = pg.text.length;
   const rows = Array.from({ length: n }, (_, i) => i);
+  const pair = colorPair(o);
+  const edge = (x, w) => Math.min(Math.max(x, 10 + w / 2), W - 10 - w / 2);   // 画面の外にはみ出さない
+
+  /* 行ごとの下ごしらえ: 位置と幅を、先にまとめて測る */
+  const info = rows.map((r) => {
+    const model = parseLine(pg.text[r] ?? "", o.seg);
+    ctx.font = mainFont;
+    const pos = makePos(ctx, model.disp, o.ligature);
+    const total = pos(model.disp.length);
+    const ratio = total <= maxW ? 1 : maxW / total;
+    const sx = (p) => rtl ? W - 80 - p * ratio : 40 + p * ratio;
+    const mid = (a, b) => sx((pos(a) + pos(b)) / 2);
+
+    // 色の区間(画面の左から右へ。両端は外まで伸ばす)
+    const runs = model.runs.map((run) => {
+      const a = sx(pos(run.s));
+      const b = sx(pos(run.e));
+      return { color: run.color, x0: Math.min(a, b), x1: Math.max(a, b) };
+    }).sort((p, q) => p.x0 - q.x0);
+    if (runs.length) { runs[0].x0 = -1e4; runs[runs.length - 1].x1 = 1e4; }
+
+    const gloss = model.items.filter((it) => it.group).map((it) => ({ it, cx: mid(it.s, it.e) }));
+    let phon = null;
+    if (o.readWord) {
+      const plan = readingPlan(model, pg.text2[r]);
+      if (plan.ok) phon = plan.items.map((p) => ({ ...p, cx: mid(p.s, p.e) }));
+    }
+
+    for (const g of gloss) {                    // 逐語訳の幅(ここから先は、位置を測らない)
+      g.text = g.it.ruby;
+      g.family = `"BIZ UDP明朝"`;
+      const b = /^【(.*)】$/.exec(g.text);
+      if (b) { g.text = b[1]; g.family = `"${JP_FONT}"`; }
+      g.color = g.it.color;
+      ctx.font = `27px ${g.family}`;
+      g.w = ctx.measureText(g.text).width;
+    }
+    fitRow(gloss).forEach((f, k) => Object.assign(gloss[k], f));
+    if (phon) {
+      ctx.font = o.font2;
+      for (const p of phon) p.w = ctx.measureText(p.text).width;
+      fitRow(phon).forEach((f, k) => Object.assign(phon[k], f));
+    }
+    return { runs, gloss, phon };
+  });
 
   ctx.shadowColor = shadow;
 
@@ -1091,56 +1312,50 @@ function drawMain(ctx, o, pg) {
     ctx.shadowBlur = 10;
 
     /* 2段目(読み) */
-    ctx.font = o.font2;
     for (const r of rows) {
       const y = 120 + 180 * r + o.spacing + ROW_OFFSET[r];
-      ctx.fillText(rm(pg.text2[r]), 42.5, y, maxW);
+      const { phon } = info[r];
+      if (phon) {                               // 単語の位置に合わせる
+        ctx.textAlign = "center";
+        for (const p of phon) {
+          ctx.font = scaleFont(o.font2, p.s);
+          ctx.fillStyle = pair[p.color];
+          ctx.fillText(p.text, edge(p.cx, p.ew), y, p.ew + 0.5);
+        }
+        ctx.textAlign = "left";
+      } else {                                  // 行ごと(左から順に)
+        ctx.font = o.font2;
+        ctx.fillStyle = pair[0];
+        ctx.fillText(rm(pg.text2[r]), 42.5, y, maxW);
+      }
     }
 
     /* 和訳 */
+    ctx.fillStyle = pair[0];
     ctx.font = `${JA_SIZE}px "Times New Roman", "${JP_FONT}", "Source Han Serif K"`;
     for (const r of rows) {
       const y = JA_SIZE + 121 + 180 * r + o.spacing + ROW_OFFSET[r];
       ctx.fillText(rm(pg.ja[r]), 40, y, maxW);
     }
 
-    /* ルビ */
+    /* ルビ(逐語訳) */
     for (const r of rows) {
-      const line = pg.text[r] ?? "";
-      ctx.textAlign = "left";
-      ctx.font = mainFont;
-      const lineWidth = ctx.measureText(rm(line)).width;
-      const ratio = lineWidth <= maxW ? 1 : maxW / lineWidth;
-
-      for (const m of line.matchAll(RUBY_RE)) {
-        const [base, ruby] = m[0].split("|");
-
-        ctx.textAlign = "left";
-        ctx.font = mainFont;
-        const width = ctx.measureText(rm(line.substring(0, m.index - 1))).width
-                    + ctx.measureText(base).width / 2;
-
-        let writeText = ruby;
+      for (const g of info[r].gloss) {
         ctx.textAlign = "center";
         ctx.shadowBlur = 2;
-        ctx.font = `27px "BIZ UDP明朝"`;
-        const bracket = /^【(.*)】$/.exec(writeText);
-        if (bracket) {
-          writeText = bracket[1];
-          ctx.font = `27px "${JP_FONT}"`;
-        }
-
+        ctx.font = `${+(27 * g.s).toFixed(2)}px ${g.family}`;
+        ctx.fillStyle = pair[g.color];
         const baseY = (12 + 176 * r + o.spacing4) - o.fontSize + o.spacing + o.spacing2;
+        const x = edge(g.cx, g.ew);
+        const mw = g.ew + 0.5;
         if (rtl) {
-          const x = W - 80 - width * ratio;
-          ctx.fillText(writeText, x, baseY + 20, maxW);
-          ctx.fillText(writeText, x, baseY + 20, maxW);
+          ctx.fillText(g.text, x, baseY + 20, mw);
+          ctx.fillText(g.text, x, baseY + 20, mw);
         } else {
-          const x = 40 + width * ratio;
           ctx.lineWidth = 1;
           ctx.strokeStyle = shadow;
-          ctx.strokeText(writeText, x, baseY, maxW);
-          ctx.fillText(writeText, x, baseY, maxW);
+          ctx.strokeText(g.text, x, baseY, mw);
+          ctx.fillText(g.text, x, baseY, mw);
         }
       }
     }
@@ -1148,7 +1363,6 @@ function drawMain(ctx, o, pg) {
     /* メインの歌詞(影ありと影なしで2回) */
     ctx.font = mainFont;
     ctx.shadowColor = shadow;
-    ctx.fillStyle = o.color;
     ctx.textAlign = "left";
 
     for (const blur of [10, 2]) {
@@ -1163,7 +1377,21 @@ function drawMain(ctx, o, pg) {
           x = 40;
           y = 70 + 180 * r + o.spacing + o.spacing2 + ROW_OFFSET[r];
         }
-        ctx.fillText(str, x, y, maxW);
+        const { runs } = info[r];
+        if (runs.length <= 1) {
+          ctx.fillStyle = pair[runs.length ? runs[0].color : 0];
+          ctx.fillText(str, x, y, maxW);
+        } else {                                // 色の区間ごとに、同じ行を切り抜いて描き直す(字の形はそのまま)
+          for (const run of runs) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(run.x0, y - o.fontSize * 1.5, run.x1 - run.x0, o.fontSize * 3);
+            ctx.clip();
+            ctx.fillStyle = pair[run.color];
+            ctx.fillText(str, x, y, maxW);
+            ctx.restore();
+          }
+        }
       }
     }
   }
@@ -1213,10 +1441,160 @@ function renderPage(ctx, o, pg, bgImg, flagImg, noteImg) {
   ctx.restore();
 }
 
+/* ---------- 縦書き(モンゴル文字・満州文字) ---------- */
+// 縦書きのフォント([縦])を選ぶと、歌詞ページの1段目((単語|意味)の行)だけを縦書きにする。
+//   左の約4分の1 : 原文の縦の列(4行ぶん、左から右へ)と、その右に縦書きの逐語訳
+//   右の約4分の3 : 発音表記と和訳(横書き)
+// 原文は、横に組んだものを時計回りに90°回して描く(モンゴル文字のフォントは、横に組むと90°寝て出るため)。
+const V_ROTATE = "ー—－―…〜～（）()「」『』【】〈〉《》[]［］｛｝<>";    // 縦書きでは、字形を90°回して描く文字
+const V_PUNCT = "、。，．,.";                                           // 縦書きでは、右上に寄せる文字
+
+// 縦書きの文字列を、1文字ずつの区画に分ける(欧文・数字は、まとめて1区画)。呼ぶ前に ctx.font を決めておく
+function vCells(ctx, text, size) {
+  return (text.match(/[\x20-\x7e]+|./gsu) ?? []).map((s) => {
+    const run = /^[\x20-\x7e]+$/.test(s);
+    return { s, run, len: run ? ctx.measureText(s).width : size };
+  });
+}
+
+// 縦書きの日本語を、1文字ずつ立てて描く。cx=列の中心、cy=文字列の中心(上下)。呼ぶ前に ctx.font を決めておく
+function drawVerticalText(ctx, text, cx, cy, size, outline) {
+  const put = (s, x, y) => {
+    if (outline) ctx.strokeText(s, x, y);
+    ctx.fillText(s, x, y);
+  };
+  const cells = vCells(ctx, text, size);
+  let y = cy - cells.reduce((n, c) => n + c.len, 0) / 2;
+  for (const c of cells) {
+    ctx.save();
+    ctx.textBaseline = "middle";
+    if (c.run) {                                // 欧文・数字は、横倒しにして列に沿わせる
+      ctx.translate(cx, y);
+      ctx.rotate(Math.PI / 2);
+      ctx.textAlign = "left";
+      put(c.s, 0, 0);
+    } else if (V_ROTATE.includes(c.s)) {
+      ctx.translate(cx, y + c.len / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.textAlign = "center";
+      put(c.s, 0, 0);
+    } else {
+      const punct = V_PUNCT.includes(c.s);
+      ctx.textAlign = "center";
+      put(c.s, cx + (punct ? size * 0.5 : 0), y + c.len / 2 - (punct ? size * 0.5 : 0));
+    }
+    ctx.restore();
+    y += c.len;
+  }
+}
+
+function drawMainVertical(ctx, o, pg) {
+  const shadow = o.color === "black" ? "white" : "black";
+  const v = o.fontSize;                             // 原文の文字サイズ(横書きと同じスライダー)
+  const rs = 27;                                    // 逐語訳の文字サイズ(横書きのルビと同じ)
+  const half = Math.round(0.55 * v);                // 原文の字の、列の中心からの半幅(モンゴル文字は幅が広い)
+  const pitch = Math.round(2 * half + 4 + rs + 3);  // 列1本ぶんの幅(原文の半幅+逐語訳。左の余白を除く)
+  const rightX = 12 + 4 * pitch + 16;               // 右側(発音表記・和訳)の左端
+  const rightW = W - rightX - 40;
+  const top = 40 + o.spacing2;                      // 縦の列の上端
+  const colLen = H - top - 40;                      // 縦の列の長さ
+  const rmV = (s) => removeRuby(s, false);
+  const rmH = (s) => removeRuby(s, o.ligature);
+  const mainFont = `${o.isBold} ${v}px "${o.font}"`;
+  const rows = Array.from({ length: pg.text.length }, (_, i) => i);
+  const pair = colorPair(o);
+
+  /* 列ごとの下ごしらえ: 位置と長さを、先にまとめて測る */
+  const info = rows.map((r) => {
+    const model = parseLine(pg.text[r] ?? "", o.seg);
+    ctx.font = mainFont;
+    const pos = makePos(ctx, model.disp, false);
+    const ratio = pos(model.disp.length) <= colLen ? 1 : colLen / pos(model.disp.length);
+    const runs = model.runs.map((run) => ({ color: run.color, x0: pos(run.s) * ratio, x1: pos(run.e) * ratio }));
+    if (runs.length) { runs[0].x0 = -1e4; runs[runs.length - 1].x1 = 1e4; }
+    const gloss = model.items.filter((it) => it.group).map((it) => ({
+      it, cx: (pos(it.s) + pos(it.e)) / 2 * ratio, color: it.color,
+    }));
+    for (const g of gloss) {
+      g.text = g.it.ruby;
+      g.family = `"BIZ UDP明朝"`;
+      const b = /^【(.*)】$/.exec(g.text);
+      if (b) { g.text = b[1]; g.family = `"${JP_FONT}"`; }
+      ctx.font = `${rs}px ${g.family}`;
+      g.w = vCells(ctx, g.text, rs).reduce((s, c) => s + c.len, 0);
+    }
+    fitRow(gloss, 4).forEach((f, k) => { gloss[k].s = f.s; });   // 縦書きは、文字サイズを下げるだけ
+    return { runs, gloss };
+  });
+
+  ctx.shadowColor = shadow;
+  for (let pass = 0; pass < 2; pass++) {            // 影を濃くするため2回重ね描きする
+    /* 右側: 発音表記と和訳(横書き) */
+    ctx.save();
+    ctx.fillStyle = pair[0];
+    ctx.textAlign = "left";
+    ctx.shadowBlur = 10;
+    for (const r of rows) {
+      const y = 90 + 180 * r + o.spacing + ROW_OFFSET[r];
+      ctx.font = o.font2;
+      ctx.fillText(rmH(pg.text2[r]), rightX, y, rightW);
+      ctx.font = `${JA_SIZE}px "Times New Roman", "${JP_FONT}", "Source Han Serif K"`;
+      ctx.fillText(rmH(pg.ja[r]), rightX, y + 46, rightW);
+    }
+    ctx.restore();
+
+    /* 左側: 縦の列(原文と、その右の逐語訳) */
+    for (const r of rows) {
+      const line = pg.text[r] ?? "";
+      const cx = 12 + pitch * r + half;                                   // 原文の列の中心
+      const rx = cx + half + 4 + Math.round(rs / 2);                      // 逐語訳の列の中心
+      const { runs, gloss } = info[r];
+      ctx.save();
+      ctx.shadowBlur = 2;
+      for (const g of gloss) {
+        const size = +(rs * g.s).toFixed(2);
+        ctx.font = `${size}px ${g.family}`;
+        ctx.fillStyle = pair[g.color];
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = shadow;
+        drawVerticalText(ctx, g.text, rx, top + g.cx, size, true);
+      }
+
+      ctx.translate(cx, top);                       // 時計回りに90°回して、横書きの原文を縦に立てる
+      ctx.rotate(Math.PI / 2);
+      ctx.font = mainFont;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      for (const blur of [10, 2]) {
+        ctx.shadowBlur = blur;
+        if (runs.length <= 1) {
+          ctx.fillStyle = pair[runs.length ? runs[0].color : 0];
+          ctx.fillText(rmV(line), 0, 0, colLen);
+        } else {                                    // 色の区間ごとに切り抜いて描き直す
+          for (const run of runs) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(run.x0, -v * 1.5, run.x1 - run.x0, v * 3);
+            ctx.clip();
+            ctx.fillStyle = pair[run.color];
+            ctx.fillText(rmV(line), 0, 0, colLen);
+            ctx.restore();
+          }
+        }
+      }
+      ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
 /* ---------- 状態(ページの種類)に応じて項目を出し分け ---------- */
-function applyMode(kind) {
+function applyMode(kind, vertical) {
   for (const el of form.querySelectorAll("[data-modes]")) {
     el.hidden = !el.dataset.modes.split(" ").includes(kind);
+  }
+  for (const el of form.querySelectorAll("[data-when]")) {   // 縦書きフォントか、横書きフォントかで出し分ける項目
+    el.hidden = (el.dataset.when === "vertical") !== !!vertical;
   }
 }
 
@@ -1254,7 +1632,7 @@ async function update() {
   const { pages, warnings } = buildPages($("lyr").value, o);
   syncPageSelect(pages);
   const pg = pages[pageIndex];
-  applyMode(pg.kind);
+  applyMode(pg.kind, o.vertical);
   syncNoteImageUI(pg);
 
   const noteSrc = pg.kind === "note" && pg.image ? resolveImage(pg.image.ref) : "";
@@ -1293,6 +1671,7 @@ function getSetting(name) {
 
 function applySetting(label, name, value) {
   const el = $(name);
+  if (name === "color" && value === "yellow") value = "white";   // 黄色の文字色は廃止(白にする)
   if (el.type === "checkbox") {
     el.checked = /^(true|yes|1|on|はい)$/i.test(value);
   } else if (el.tagName === "SELECT") {
@@ -1720,6 +2099,71 @@ document.getElementById("notePos").addEventListener("click", (e) => {
   const b = e.target.closest("[data-pos]");
   if (b && !b.disabled) editNoteLine({ pos: b.dataset.pos });
 });
+
+/* ---------- 全ページ一覧 ---------- */
+// 全ページを小さな画像で並べる。クリックでそのページを表示する。
+const overviewEl = document.getElementById("overview");
+const ovGrid = document.getElementById("ovGrid");
+let ovId = 0;
+
+function closeOverview() {
+  ovId++;
+  overviewEl.hidden = true;
+}
+
+async function showOverview() {
+  const id = ++ovId;
+  overviewEl.hidden = false;
+  const o = readOptions();
+  await loadFonts(o);
+  if (id !== ovId) return;
+  const { pages, warnings } = buildPages($("lyr").value, o);
+  document.getElementById("ovCount").textContent = `${pages.length}ページ`;
+  document.getElementById("ovWarn").textContent = warnings.join("\n");
+
+  const cards = pages.map((pg, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ov-card" + (i === pageIndex ? " cur" : "");
+    b.dataset.i = String(i);
+    const cv = document.createElement("canvas");
+    cv.width = 320;
+    cv.height = 180;
+    const cap = document.createElement("span");
+    cap.textContent = pageLabel(pg, i, pages.length);
+    b.append(cv, cap);
+    return b;
+  });
+  ovGrid.replaceChildren(...cards);
+
+  const [bgImg, flagImg] = await Promise.all([loadImage(o.flg), loadImage(o.kokki)]);
+  const off = document.createElement("canvas");
+  off.width = W;
+  off.height = H;
+  const offCtx = off.getContext("2d");
+  for (let i = 0; i < pages.length; i++) {
+    if (id !== ovId) return;
+    const pg = pages[i];
+    const noteImg = pg.kind === "note" && pg.image ? await loadImage(resolveImage(pg.image.ref)) : null;
+    try {
+      renderPage(offCtx, o, pg, bgImg, flagImg, noteImg);
+      cards[i].firstChild.getContext("2d").drawImage(off, 0, 0, 320, 180);
+    } catch (_) {}
+    await new Promise((r) => setTimeout(r, 0));   // 描くたびに画面を更新させる
+  }
+}
+
+document.getElementById("overviewBtn").addEventListener("click", showOverview);
+document.getElementById("ovClose").addEventListener("click", closeOverview);
+overviewEl.addEventListener("click", (e) => { if (e.target === overviewEl) closeOverview(); });
+ovGrid.addEventListener("click", (e) => {
+  const b = e.target.closest(".ov-card");
+  if (!b) return;
+  pageIndex = Number(b.dataset.i);
+  closeOverview();
+  scheduleUpdate();
+});
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !overviewEl.hidden) closeOverview(); });
 
 /* ---------- プレビューとフォームの境界(ドラッグで幅を変える) ---------- */
 // プレビューを狭めると、歌詞欄などのフォームが広くなる。書き出す画像は1280x720のまま。
