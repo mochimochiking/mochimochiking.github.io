@@ -290,7 +290,14 @@
           <option value="なし" selected>なし</option>
           <option value="あり">あり(隣り合う(|)で色を交互に)</option>
         </select></label>
+      <label data-when="horizontal">文字の背景の四角
+        <select name="wordBox">
+          <option value="なし" selected>なし</option>
+          <option value="あり">あり(発音表記を単語に合わせるとき)</option>
+        </select></label>
       <p class="hint">
+        <b>文字の背景の四角</b>: 発音表記を「単語の位置に合わせる」表示のとき、原語の単語(空白で区切った部分)ごとに、逐語訳・原語・発音表記を覆う半透明の四角を、文字の後ろに敷きます。色は文字の反対色です。単語と単語の間には、四角の切れ目があくようにします(空白が狭いときは、その分だけ空白を広げます)。単語の中の (|) どうしの境目にも、細い切れ目をあけます。
+        1つの単語に (|) が続くとき(例: (我|私)(的|の))は、角は単語の両端(先頭の (|) の左上・左下と、最後の (|) の右上・右下)だけを丸めます。(|) どうしの境目は直角のままです。行ごとの表示になった行には付きません。<br>
         <b>発音表記を単語に合わせる</b>: 原語の行を空白で区切った単語ごとに、発音表記の行の同じ順番の語を、その単語の中央に置きます(語の数が合わない行は、警告を出して行ごとの表示にします)。
         発音表記の語にハイフンがあるときは、ハイフンで区切って、単語の中の (|) に順番に合わせます(例: (사람|人)(이|が) に saram-i と書くと、それぞれの中央に置き、ハイフンは表示しません)。ハイフンの数が (|) の数と合わないときは、単語全体の中央に置きます。
         空白で区切らない言語(タイ語など)は、発音表記も空白なしで、ハイフンだけで区切って書きます。<br>
@@ -344,6 +351,7 @@ const SETTINGS = [
   ["ルビの位置", "spacing4"],
   ["発音表記", "readMode"],
   ["区切り色", "segColor"],
+  ["文字の背景", "wordBox"],
   ["説明サイズ", "noteSize"],
 ];
 const SETTING_BY_LABEL = new Map(SETTINGS);
@@ -556,6 +564,7 @@ function readOptions() {
     spacing4:  Number(v("spacing4")),
     readWord:  v("readMode") === "単語",
     seg:       v("segColor") === "あり",
+    wordBox:   v("wordBox") === "あり",
     noteSize:  Number(v("noteSize")),
   };
 }
@@ -1235,6 +1244,7 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) {
   for (const c of cells) {
     c.w0 = ctx.measureText(ligate(c.text, o.ligature)).width;
     c.cw = c.w0;
+    if (o.wordBox && c.gap) c.cw = Math.max(c.cw, BOX_GAP + 2 * BOX_PAD_X);   // 単語の四角の間をあける
     c.padL = 0;
     c.padR = 0;
   }
@@ -1284,7 +1294,13 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) {
   }
   const ratio = x <= maxW ? 1 : maxW / x;
   const sx = (v) => o.rtl ? W - 80 - v * ratio : 40 + v * ratio;
-  for (const c of cells) c.cx = sx(c.x0 + c.cw / 2);
+  for (const c of cells) {
+    c.cx = sx(c.x0 + c.cw / 2);
+    const a = sx(c.x0 - c.padL);                // 区画の左右の端(画面上の位置)
+    const b = sx(c.x0 + c.cw + c.padR);
+    c.xl = Math.min(a, b);
+    c.xr = Math.max(a, b);
+  }
   for (const g of gloss) {
     const c = cells.find((k) => k.group === g.it);
     if (c) g.cx = c.cx;
@@ -1296,6 +1312,82 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) {
     p.cx = sx((a.x0 + b.x0 + b.cw) / 2);
   }
   return { cells, ratio };
+}
+
+/* ---------- 文字の背景の四角(発音表記を単語に合わせるとき) ---------- */
+const BOX_ALPHA = 0.25;                         // 四角の濃さ(半透明。色は文字の反対色)
+const BOX_RADIUS = 16;                          // 角の丸み(px)
+const BOX_SEG_GAP = 4;                          // 単語の中の (|) どうしの境目にあける切れ目の幅(px)
+const BOX_PAD_X = 4;                            // 単語の左右にはみ出す幅(px)
+const BOX_GAP = 8;                              // 隣り合う単語の四角の間にあける幅(px)。空白の幅がこれより狭いときは、空白を広げる
+const BOX_ASC = 0.9;                            // 基準線から上(文字サイズの倍率)
+const BOX_DESC = 0.2;                           // 基準線から下(文字サイズの倍率)
+const GLOSS_SIZE = 27;                          // 逐語訳(ルビ)の文字サイズ
+
+// 角丸の四角のパス。rl・rr は左側・右側の角の半径(0なら直角)
+function roundedPath(ctx, x, y, w, h, rl, rr) {
+  const lim = Math.min(w / 2, h / 2);
+  rl = Math.min(rl, lim);
+  rr = Math.min(rr, lim);
+  ctx.beginPath();
+  ctx.moveTo(x + rl, y);
+  ctx.lineTo(x + w - rr, y);
+  if (rr) ctx.arcTo(x + w, y, x + w, y + rr, rr); else ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + h - rr);
+  if (rr) ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr); else ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x + rl, y + h);
+  if (rl) ctx.arcTo(x, y + h, x, y + h - rl, rl); else ctx.lineTo(x, y + h);
+  ctx.lineTo(x, y + rl);
+  if (rl) ctx.arcTo(x, y, x + rl, y, rl); else ctx.lineTo(x, y);
+  ctx.closePath();
+}
+
+// 空白で区切った単語ごとに、隣り合う区画をつないだ1つの四角を敷く。
+// 単語の両端の角だけを丸め、(|) どうしのつなぎ目は区画の境界なので丸めない(=1つの四角になる)。
+// 空白の区画は四角に含めない(wordLayout が、四角の間に BOX_GAP 以上あくように空白を広げる)。
+// 縦は、逐語訳の上端から、原語、発音表記の下端までを覆う(和訳は含めない)。
+function drawWordBoxes(ctx, o, info, rows) {
+  ctx.save();
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "transparent";
+  ctx.fillStyle = o.color === "black" ? "white" : "black";   // 文字の反対色
+  ctx.globalAlpha = BOX_ALPHA;
+  const phonSize = Number(/(\d+(?:\.\d+)?)px/.exec(o.font2)?.[1]) || 35;
+  for (const r of rows) {
+    const layout = info[r].layout;
+    if (!layout) continue;
+    const mainY = (o.rtl ? 80 : 70) + 180 * r + o.spacing + o.spacing2 + ROW_OFFSET[r];
+    const phonY = 120 + 180 * r + o.spacing + ROW_OFFSET[r];
+    let top = mainY - o.fontSize * BOX_ASC;
+    if (info[r].gloss.length) {                 // 逐語訳がある行は、その上端まで
+      const glossY = (12 + 176 * r + o.spacing4) - o.fontSize + o.spacing + o.spacing2 + (o.rtl ? 20 : 0);
+      top = Math.min(top, glossY - GLOSS_SIZE * BOX_ASC);
+    }
+    const bottom = Math.max(mainY + o.fontSize * BOX_DESC, phonY + phonSize * BOX_DESC);
+    const h = bottom - top;
+    let word = [];
+    const flushWord = () => {
+      // 単語の中は区画(= (|) や、その外の文字)ごとの四角に分け、境目に BOX_SEG_GAP の切れ目をあける。
+      // 丸めるのは単語の両端の角だけ(先頭の左上・左下、最後の右上・右下)。境目の角は直角のまま。
+      word.forEach((c, k) => {
+        const first = k === 0;
+        const last = k === word.length - 1;
+        const left = o.rtl ? last : first;        // 画面の左端にある区画(右から左のフォントでは、最後の区画)
+        const right = o.rtl ? first : last;       // 画面の右端にある区画
+        const a = left ? c.xl - BOX_PAD_X : c.xl + BOX_SEG_GAP / 2;
+        const b = right ? c.xr + BOX_PAD_X : c.xr - BOX_SEG_GAP / 2;
+        roundedPath(ctx, a, top, b - a, h, left ? BOX_RADIUS : 0, right ? BOX_RADIUS : 0);
+        ctx.fill();
+      });
+      word = [];
+    };
+    for (const c of layout.cells) {
+      if (c.gap) flushWord();
+      else word.push(c);
+    }
+    flushWord();
+  }
+  ctx.restore();
 }
 
 function drawMain(ctx, o, pg) {
@@ -1346,6 +1438,7 @@ function drawMain(ctx, o, pg) {
   });
 
   ctx.shadowColor = shadow;
+  if (o.wordBox) drawWordBoxes(ctx, o, info, rows);   // 文字より先に(後ろに)敷く
 
   // 影を濃くするため2回重ね描きする
   for (let pass = 0; pass < 2; pass++) {
