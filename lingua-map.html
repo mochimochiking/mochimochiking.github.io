@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>言語地図 — 世界の言葉でひとこと</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: rgba(16, 22, 40, .74);
+      --panel-solid: #141a2e;
+      --field: rgba(255, 255, 255, .08);
+      --border: rgba(255, 255, 255, .14);
+      --text: #e9edfb;
+      --muted: #9aa5c8;
+      --accent: #296dff;
+      --accent-text: #fff;
+      --label-text: #0b1020;
+      --pick: #fff;
+      --map-bg: #14161c;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --panel: rgba(255, 255, 255, .8);
+      --panel-solid: #fff;
+      --field: rgba(15, 25, 60, .06);
+      --border: rgba(15, 25, 60, .14);
+      --text: #18203a;
+      --muted: #5d6788;
+      --accent: #296dff;
+      --accent-text: #fff;
+      --pick: #18203a;
+      --map-bg: #d6dde0;
+    }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; margin: 0; }
+    body { font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif; color: var(--text); }
+    #map { width: 100%; height: 100%; background: var(--map-bg); --label-size: 14px; }
+    :root[data-theme="dark"] .leaflet-tile-pane {
+      filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6);
+    }
+    button, select, input { font: inherit; color: inherit; }
+
+    /* ---------- パネル共通 ---------- */
+    .panel {
+      position: fixed;
+      z-index: 1100;
+      background: var(--panel);
+      -webkit-backdrop-filter: blur(14px) saturate(1.4);
+      backdrop-filter: blur(14px) saturate(1.4);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+    }
+    .panel button, .panel select, .panel input[type="text"] {
+      background: var(--field);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 12px;
+    }
+    .panel button { cursor: pointer; }
+    .panel button:hover:not(:disabled) { border-color: var(--accent); }
+    .panel button:disabled { opacity: .4; cursor: default; }
+    .panel button.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 700; }
+    .panel select option, .panel select optgroup { background: var(--panel-solid); color: var(--text); }
+    .panel :focus-visible, .lp button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* ---------- 上部バー ---------- */
+    .bar {
+      top: 12px; left: 12px; right: 12px;
+      max-width: 1000px; margin: 0 auto;
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 10px 14px; padding: 10px 14px;
+    }
+    .brand { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand b { font-size: 17px; letter-spacing: .04em; }
+    .brand span { font-size: 11px; color: var(--muted); }
+    .composer { flex: 1 1 380px; display: flex; gap: 6px; min-width: 0; }
+    .composer select { max-width: 9.5em; }
+    .composer input { flex: 1; min-width: 0; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .actions button { font-size: 13px; padding: 6px 10px; }
+    .progress { flex-basis: 100%; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+    .track { flex: 1; height: 4px; border-radius: 4px; background: var(--field); overflow: hidden; }
+    .track i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+    /* ---------- 語族パネル ---------- */
+    .legend { left: 12px; bottom: 12px; width: 250px; padding: 8px 10px; font-size: 13px; }
+    .legend-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .legend-head button { font-size: 13px; padding: 4px 10px; }
+    .legend-body { margin-top: 6px; }
+    .legend.collapsed .legend-body { display: none; }
+    #famList { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 330px); overflow: auto; }
+    .panel button.fam {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      background: none; border: 0; padding: 3px 4px; text-align: left; border-radius: 6px;
+    }
+    .panel button.fam:hover { background: var(--field); }
+    .fam i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    .fam small { margin-left: auto; color: var(--muted); }
+    .fam.off { opacity: .4; text-decoration: line-through; }
+    .fam-group { margin: 8px 0 2px; padding-left: 4px; font-size: 11px; letter-spacing: .04em; color: var(--muted); }
+    .opts { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+    /* ---------- 言語ラベル ---------- */
+    .lang-icon { overflow: visible; }
+    .lang-icon:hover { z-index: 10000 !important; }
+    .lang-label {
+      position: absolute; left: 0; top: 0;
+      transform: translate(-50%, -50%);
+      width: max-content;
+      max-width: 17em;
+      padding: 3px 10px 4px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: var(--label-size);
+      line-height: 1.3;
+      color: var(--label-text);
+      background: var(--c);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .25) inset, 0 0 14px color-mix(in srgb, var(--c) 55%, transparent);
+      cursor: pointer;
+      transition: opacity .25s;
+    }
+    :root[data-theme="light"] .lang-label {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .35), 0 0 0 1px rgba(0, 0, 0, .2) inset;
+    }
+    .lang-label.is-hidden { opacity: 0; pointer-events: none; }
+    .ll-name { display: block; font-size: .78em; font-weight: 600; opacity: .7; white-space: nowrap; }
+    .ll-text { display: block; font-weight: 700; overflow-wrap: anywhere; }
+    .ll-text:empty { display: none; }
+    .lang-label.is-dim { opacity: .18; }
+    .lang-label.is-loading { opacity: .5; }
+    .lang-label.is-error { background: #ff6b6b; color: #fff; }
+    .lang-label.is-pick { outline: 2px solid var(--pick); outline-offset: 2px; }
+    .lang-label.is-source { animation: pulse 1.6s ease-out 3; }
+    .lang-label.is-pop { animation: pop .45s ease-out; }
+    @keyframes pop {
+      0%   { transform: translate(-50%, -50%) scale(.4); opacity: 0; }
+      60%  { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 80%, transparent); }
+      100% { box-shadow: 0 0 0 26px transparent; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .lang-label.is-pop, .lang-label.is-source { animation: none; }
+    }
+
+    /* ---------- ポップアップ ---------- */
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel-solid); color: var(--text); box-shadow: 0 6px 24px rgba(0, 0, 0, .4); }
+    .leaflet-popup-close-button { color: var(--muted) !important; }
+    .lp-head { display: flex; flex-direction: column; gap: 2px; }
+    .lp-head span { font-size: 12px; color: var(--muted); }
+    .lp-text { font-size: 22px; line-height: 1.35; margin: 10px 0; word-break: break-word; }
+    .lp-text.muted { font-size: 14px; color: var(--muted); }
+    .lp-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .lp-actions button { cursor: pointer; font-size: 13px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--field); }
+    .lp-actions button.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 700; }
+
+    /* ---------- トースト ---------- */
+    .toast {
+      position: fixed; z-index: 1200; left: 50%; bottom: 24px;
+      transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+      padding: 8px 16px; border-radius: 999px; font-size: 13px;
+      background: var(--panel-solid); color: var(--text); border: 1px solid var(--border);
+      transition: opacity .2s, transform .2s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 700px) {
+      .bar { top: 8px; left: 8px; right: 8px; padding: 8px 10px; gap: 8px; }
+      .brand span { display: none; }
+      .legend { left: 8px; bottom: 8px; }
+      #famList { max-height: 40vh; }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <header class="panel bar">
+    <div class="brand"><b>言語地図</b><span>世界の言葉でひとこと</span></div>
+
+    <form id="form" class="composer">
+      <select id="source" aria-label="翻訳元の言語"></select>
+      <input id="text" type="text" autocomplete="off" required>
+      <button type="submit" class="primary">翻訳</button>
+    </form>
+
+    <div class="actions">
+      <button type="button" id="retry" hidden>失敗分を再試行</button>
+      <button type="button" id="copyAll" disabled title="翻訳結果を「言語名⇥訳文」の形式でコピーします">一覧をコピー</button>
+      <button type="button" id="reset">言語名に戻す</button>
+      <button type="button" id="theme" aria-label="ダーク／ライトの切り替え" title="ダーク／ライトの切り替え">◐</button>
+    </div>
+
+    <div id="progress" class="progress" hidden aria-live="polite">
+      <div class="track"><i id="bar"></i></div>
+      <span id="status"></span>
+    </div>
+  </header>
+
+  <aside id="legend" class="panel legend">
+    <div class="legend-head">
+      <strong>語族</strong>
+      <span>
+        <button type="button" id="showAll">すべて表示</button>
+        <button type="button" id="legendToggle" aria-expanded="true" aria-label="語族パネルの開閉">▾</button>
+      </span>
+    </div>
+    <div class="legend-body">
+      <ul id="famList"></ul>
+      <div class="opts">
+        <label><input type="checkbox" id="optDeclutter" checked> 重なりを自動で間引く</label>
+      </div>
+    </div>
+  </aside>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+// 翻訳APIのエンドポイント（Google Apps Script）
+const API_URL = "https://script.google.com/macros/s/AKfycbzNRZ7XmiVM4kKZdfV2IAp7I-ENutCfyrhMlgNr/exec";
+// 同時に送るリクエスト数。全言語（約100件）を一斉に送る。
+// 失敗が多いときは 6 程度に下げると、GAS側の制限に引っかかりにくくなる。
+const MAX_CONCURRENCY = 200;
+
+const $ = id => document.getElementById(id);
+
+// 語族（印欧語族は語派ごと）: [表示名, 色, 親グループ名（任意）]
+const IE = "インド・ヨーロッパ語族";
+const families = {
+  japonic:       ["日琉語族", "#edb6ab"],
+  koreanic:      ["朝鮮語", "#abd7ed"],
+  mongolic:      ["モンゴル語族", "#b6baed"],
+  turkic:        ["テュルク語族", "#c7b0e8"],
+  sinoTibetan:   ["シナ・チベット語族", "#efb3c7"],
+  hmongMien:     ["モン・ミエン語族", "#cdbdac"],
+  taiKadai:      ["タイ・カダイ語族", "#f3df91"],
+  austroasiatic: ["オーストロアジア語族", "#d1ebad"],
+  austronesian:  ["オーストロネシア語族", "#a0e3cd"],
+  dravidian:     ["ドラヴィダ語族", "#f2c7a6"],
+  uralic:        ["ウラル語族", "#b5db9f"],
+  basque:        ["バスク語", "#e0e0e0"],
+  kartvelian:    ["カルトヴェリ語族", "#97d8d3"],
+  afroAsiatic:   ["アフロ・アジア語族", "#e1ed97"],
+  nigerCongo:    ["ニジェール・コンゴ語族", "#f6935a"],
+  creole:        ["クレオール語", "#d7ccc8"],
+  // 印欧語族（鮮やかな色で、他の語族と区別する）
+  germanic:      ["ゲルマン語派", "#6ea5f7", IE],
+  romance:       ["ロマンス語派", "#d882ed", IE],
+  slavic:        ["スラブ語派", "#f37168", IE],
+  celtic:        ["ケルト語派", "#c4e052", IE],
+  baltic:        ["バルト語派", "#5fdd92", IE],
+  hellenic:      ["ギリシャ語派", "#5ae2e2", IE],
+  albanian:      ["アルバニア語派", "#a694f0", IE],
+  armenian:      ["アルメニア語派", "#f17ec3", IE],
+  iranian:       ["イラン語派", "#f5b047", IE],
+  indoAryan:     ["インド語派", "#74d65c", IE]
+};
+
+// [言語名, 言語コード, [緯度, 経度], 語族]
+const data = [
+  ["日本語", "ja", [36, 137], "japonic"],
+  ["朝鮮語", "ko", [38, 127], "koreanic"],
+  ["モンゴル語", "mn", [47, 103], "mongolic"],
+  ["中国語（簡体）", "zh-CN", [35, 115], "sinoTibetan"],
+  ["中国語（繁体）", "zh-TW", [24, 121], "sinoTibetan"],
+  ["ビルマ語", "my", [21, 96], "sinoTibetan"],
+  ["モン語", "hmn", [22, 101], "hmongMien"],
+  ["タイ語", "th", [15, 100], "taiKadai"],
+  ["ラオ語", "lo", [20, 102], "taiKadai"],
+  ["クメール語", "km", [13, 105], "austroasiatic"],
+  ["ベトナム語", "vi", [21, 105], "austroasiatic"],
+  ["タガログ語", "tl", [13, 122], "austronesian"],
+  ["セブアノ語", "ceb", [9, 125], "austronesian"],
+  ["マレー語", "ms", [3, 102], "austronesian"],
+  ["インドネシア語", "id", [0, 105], "austronesian"],
+  ["ジャワ語", "jv", [-8, 112], "austronesian"],
+  ["スンダ語", "su", [-7, 107], "austronesian"],
+  ["マダガスカル語", "mg", [-20, 46], "austronesian"],
+  ["サモア語", "sm", [-14, -172], "austronesian"],
+  ["ハワイ語", "haw", [20, -156], "austronesian"],
+  ["テルグ語", "te", [16, 79], "dravidian"],
+  ["カンナダ語", "kn", [14, 76], "dravidian"],
+  ["マラヤーラム語", "ml", [10, 77], "dravidian"],
+  ["タミル語", "ta", [12, 78], "dravidian"],
+  ["ウイグル語", "ug", [40, 85], "turkic"],
+  ["ウズベク語", "uz", [41, 64], "turkic"],
+  ["カザフ語", "kk", [50, 70], "turkic"],
+  ["キルギス語", "ky", [42, 74], "turkic"],
+  ["タタール語", "tt", [55, 51], "turkic"],
+  ["トルクメン語", "tk", [38, 58], "turkic"],
+  ["トルコ語", "tr", [40, 31], "turkic"],
+  ["アゼルバイジャン語", "az", [40, 49], "turkic"],
+  ["ハンガリー語", "hu", [47, 19], "uralic"],
+  ["フィンランド語", "fi", [61, 25], "uralic"],
+  ["エストニア語", "et", [59, 25], "uralic"],
+  ["ベンガル語", "bn", [23, 90], "indoAryan"],
+  ["オリヤー語", "or", [20, 84], "indoAryan"],
+  ["ネパール語", "ne", [28, 85], "indoAryan"],
+  ["ヒンディー語", "hi", [27, 78], "indoAryan"],
+  ["ウルドゥー語", "ur", [29, 72], "indoAryan"],
+  ["グジャラート語", "gu", [22, 71], "indoAryan"],
+  ["パンジャーブ語", "pa", [31, 75], "indoAryan"],
+  ["シンド語", "sd", [26, 68.5], "indoAryan"],
+  ["マラーティー語", "mr", [20, 76], "indoAryan"],
+  ["シンハラ語", "si", [7, 80], "indoAryan"],
+  ["パシュトー語", "ps", [31, 69], "iranian"],
+  ["クルド語", "ku", [37, 44], "iranian"],
+  ["ペルシャ語", "fa", [33, 54], "iranian"],
+  ["タジク語", "tg", [38, 69], "iranian"],
+  ["アルメニア語", "hy", [40, 45], "armenian"],
+  ["ギリシャ語", "el", [39, 23], "hellenic"],
+  ["アルバニア語", "sq", [41, 20], "albanian"],
+  ["ラトビア語", "lv", [57, 24], "baltic"],
+  ["リトアニア語", "lt", [55, 24], "baltic"],
+  ["ロシア語", "ru", [56, 38], "slavic"],
+  ["ベラルーシ語", "be", [54, 28], "slavic"],
+  ["ウクライナ語", "uk", [50, 31], "slavic"],
+  ["ポーランド語", "pl", [52, 20], "slavic"],
+  ["スロバキア語", "sk", [49, 18], "slavic"],
+  ["チェコ語", "cs", [50, 15], "slavic"],
+  ["ブルガリア語", "bg", [43, 24], "slavic"],
+  ["マケドニア語", "mk", [42, 22], "slavic"],
+  ["セルビア語", "sr", [44, 21], "slavic"],
+  ["ボスニア語", "bs", [44, 18], "slavic"],
+  ["クロアチア語", "hr", [46, 17], "slavic"],
+  ["スロベニア語", "sl", [46, 15], "slavic"],
+  ["ルーマニア語", "ro", [44, 26], "romance"],
+  ["イタリア語", "it", [42, 13], "romance"],
+  ["コルシカ語", "co", [42, 9], "romance"],
+  ["フランス語", "fr", [48, 3], "romance"],
+  ["カタルーニャ語", "ca", [42, 2], "romance"],
+  ["スペイン語", "es", [41, -4], "romance"],
+  ["ガリシア語", "gl", [43, -7], "romance"],
+  ["ポルトガル語", "pt", [39, -9], "romance"],
+  ["ドイツ語", "de", [51, 12], "germanic"],
+  ["イディッシュ語", "yi", [51, 15], "germanic"],
+  ["ルクセンブルク語", "lb", [50, 6], "germanic"],
+  ["オランダ語", "nl", [52, 5], "germanic"],
+  ["アフリカーンス語", "af", [-33, 18], "germanic"],
+  ["フリジア語", "fy", [53, 6], "germanic"],
+  ["英語", "en", [51, -1], "germanic"],
+  ["デンマーク語", "da", [55, 11], "germanic"],
+  ["スウェーデン語", "sv", [59, 17], "germanic"],
+  ["ノルウェー語", "no", [60, 10], "germanic"],
+  ["アイスランド語", "is", [65, -19], "germanic"],
+  ["スコットランド・ゲール語", "gd", [57, -4], "celtic"],
+  ["アイルランド語", "ga", [53, -9], "celtic"],
+  ["ウェールズ語", "cy", [53, -4], "celtic"],
+  ["バスク語", "eu", [43, -1], "basque"],
+  ["ジョージア語", "ka", [42, 44], "kartvelian"],
+  ["アラビア語", "ar", [25, 28], "afroAsiatic"],
+  ["マルタ語", "mt", [36, 14.2], "afroAsiatic"],
+  ["ヘブライ語", "he", [32, 35], "afroAsiatic"],
+  ["アムハラ語", "am", [10, 39], "afroAsiatic"],
+  ["ソマリ語", "so", [5, 46], "afroAsiatic"],
+  ["ハウサ語", "ha", [13, 6], "afroAsiatic"],
+  ["ヨルバ語", "yo", [6, 4], "nigerCongo"],
+  ["イボ語", "ig", [5, 7], "nigerCongo"],
+  ["スワヒリ語", "sw", [-4, 38], "nigerCongo"],
+  ["ルワンダ語", "rw", [-2, 30], "nigerCongo"],
+  ["チェワ語", "ny", [-13, 34], "nigerCongo"],
+  ["ショナ語", "sn", [-17, 29], "nigerCongo"],
+  ["ソト語", "st", [-28, 28], "nigerCongo"],
+  ["ズールー語", "zu", [-28, 32], "nigerCongo"],
+  ["コサ語", "xh", [-32, 29], "nigerCongo"],
+  ["ハイチ語", "ht", [19, -72], "creole"]
+];
+
+// ラベルが重なったときに優先して残す言語（話者数の多い言語を中心に）
+// 配列の先頭ほど優先（それ以外の言語は、データの並び順）
+const PRIORITY = [
+  "zh-CN", "en", "hi", "es", "ar", "fr", "bn", "pt", "ru", "ja", "de", "ur", "id", "ko", "tr", "vi", "it", "fa", "th", "sw", "ha",
+  "zh-TW", "my", "ms", "tl", "ta", "te", "mr", "kk", "uk", "pl", "nl", "sv", "el", "he", "am", "yo", "zu", "af", "mn", "ro", "hu", "cs", "fi", "ne", "pa"
+];
+
+// state: idle | source | loading | done | error
+const langs = data.map(([name, code, pos, family], i) => ({
+  name, code, pos, family,
+  text: name,
+  state: "idle",
+  marker: null,
+  el: null,
+  priority: PRIORITY.includes(code) ? PRIORITY.indexOf(code) : PRIORITY.length + i
+}));
+const byCode = new Map(langs.map(l => [l.code, l]));
+
+// 状態
+let current = byCode.get("ja"); // 翻訳元として選択中の言語
+let lastJob = null;             // 直近の翻訳（再試行用）
+let ctrl = null;                // 実行中の翻訳を中断するための AbortController
+const famOn = Object.fromEntries(Object.keys(families).map(k => [k, true]));
+const cache = new Map();
+
+/* ================= 地図 ================= */
+const map = L.map("map", { minZoom: 2, worldCopyJump: true, zoomControl: false })
+  .setView([32, 45], window.innerWidth < 700 ? 2 : 3);
+L.control.zoom({ position: "bottomright" }).addTo(map);
+map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+
+// 地図タイル：国土地理院（APIキー不要）。淡色地図は言語ラベルが映える。
+// 標準地図に戻したい場合は URL の "pale" を "std" に変える。
+const TILE_URL = "https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png";
+const tileLayer = L.tileLayer(TILE_URL, {
+  minZoom: 2,
+  maxZoom: 18,
+  attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank' rel='noopener'>地理院タイル</a>"
+}).addTo(map);
+
+// タイルが1枚も読み込めないときは、原因に気づけるよう知らせる
+let tilesLoaded = 0, tilesFailed = 0;
+tileLayer.on("tileload", () => { tilesLoaded++; });
+tileLayer.on("tileerror", () => {
+  tilesFailed++;
+  if (tilesFailed === 8 && tilesLoaded === 0) toast("地図タイルを読み込めません。ネットワークやタイルのURL設定を確認してください");
+});
+
+// ダークテーマは、淡色地図を CSS で反転して作る（タイルの種類を増やさずに済む）
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("langmap-theme", t); } catch (e) { /* 保存できなくても動作には影響しない */ }
+}
+let savedTheme = null;
+try { savedTheme = localStorage.getItem("langmap-theme"); } catch (e) { /* ignore */ }
+setTheme(savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+$("theme").addEventListener("click", () => {
+  setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
+
+function updateLabelSize() {
+  const size = Math.min(17, 11 + map.getZoom() * 0.9);
+  map.getContainer().style.setProperty("--label-size", size + "px");
+}
+map.on("zoomend", updateLabelSize);
+updateLabelSize();
+
+/* ================= ラベルの描画 ================= */
+function render(lang) {
+  const el = lang.el;
+  if (!el) return;
+  const translated = lang.state === "done" || lang.state === "source";
+  // 上段：言語名（常に表示） / 下段：翻訳
+  lang.elText.textContent =
+    lang.state === "loading" ? "…" :
+    lang.state === "error"   ? "×" :
+    translated               ? lang.text : "";
+  lang.elText.lang = translated ? lang.code : "ja";
+  el.classList.toggle("is-source",  lang.state === "source");
+  el.classList.toggle("is-loading", lang.state === "loading");
+  el.classList.toggle("is-error",   lang.state === "error");
+  el.classList.remove("is-pop");
+  if (lang.state === "done") { // 訳文が届いたときにポンと弾ませる
+    void el.offsetWidth;
+    el.classList.add("is-pop");
+  }
+}
+
+function setState(lang, state, text) {
+  lang.state = state;
+  if (text !== undefined) lang.text = text;
+  lang.marker.setZIndexOffset(state === "source" ? 2000 : 0);
+  render(lang);
+  updateProgress();
+  scheduleDeclutter();
+}
+
+/* ================= ラベルの重なり回避 ================= */
+let raf = 0;
+function scheduleDeclutter() {
+  if (raf) return;
+  raf = requestAnimationFrame(() => { raf = 0; declutter(); });
+}
+
+function declutter() {
+  const auto = $("optDeclutter").checked;
+  // まとめて計測してから、まとめて書き込む（レイアウトの再計算を繰り返さない）
+  const items = langs.map(l => {
+    const p = map.latLngToContainerPoint(l.marker.getLatLng());
+    return { l, x: p.x, y: p.y, w: l.el.offsetWidth, h: l.el.offsetHeight, hide: false };
+  });
+  // 選択中・翻訳元の言語は常に残し、あとは優先度の高い順に場所を確保する
+  const pinned = l => l === current || l.state === "source";
+  const rank = l => pinned(l) ? -1 : l.priority;
+  items.sort((a, b) => rank(a.l) - rank(b.l));
+
+  const placed = [];
+  for (const it of items) {
+    if (!famOn[it.l.family]) { it.hide = true; continue; }
+    const r = { x1: it.x - it.w / 2 - 3, x2: it.x + it.w / 2 + 3, y1: it.y - it.h / 2 - 1, y2: it.y + it.h / 2 + 1 };
+    const overlaps = placed.some(q => r.x1 < q.x2 && r.x2 > q.x1 && r.y1 < q.y2 && r.y2 > q.y1);
+    if (auto && overlaps && !pinned(it.l)) it.hide = true;
+    else placed.push(r);
+  }
+  for (const it of items) it.l.el.classList.toggle("is-hidden", it.hide);
+}
+map.on("moveend zoomend resize", scheduleDeclutter);
+$("optDeclutter").addEventListener("change", scheduleDeclutter);
+
+/* ================= 進捗表示 ================= */
+function updateProgress() {
+  const box = $("progress");
+  if (!lastJob) { box.hidden = true; $("retry").hidden = true; $("copyAll").disabled = true; return; }
+  const total = langs.length - 1;
+  const count = s => langs.filter(l => l.state === s).length;
+  const done = count("done"), err = count("error"), pending = count("loading");
+  box.hidden = false;
+  $("bar").style.width = `${((done + err) / total) * 100}%`;
+  $("status").textContent =
+    pending ? `翻訳中… ${done + err} / ${total}` :
+    err     ? `完了：${done} 言語に翻訳・${err} 言語は失敗` :
+              `完了：${total} 言語に翻訳しました`;
+  $("retry").hidden = !(pending === 0 && err > 0);
+  $("copyAll").disabled = done === 0;
+}
+
+/* ================= 翻訳 ================= */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function translateOne(text, from, to, signal) {
+  const key = `${from}|${to}|${text}`;
+  if (cache.has(key)) return cache.get(key);
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) { // 一時的な失敗は1回だけやり直す
+    try {
+      const params = new URLSearchParams({ text, source: from, target: to });
+      const res = await fetch(`${API_URL}?${params}`, { signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const out = (await res.text()).trim();
+      if (!out || /^<(!doctype|html)/i.test(out)) throw new Error("unexpected response");
+      cache.set(key, out);
+      return out;
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      lastErr = err;
+      await sleep(500);
+    }
+  }
+  throw lastErr;
+}
+
+function dist(a, b) {
+  return map.distance(a.marker.getLatLng(), b.marker.getLatLng());
+}
+
+async function execute(source, text, targets) {
+  ctrl?.abort();
+  ctrl = new AbortController();
+  const { signal } = ctrl;
+  let next = 0;
+  async function worker() {
+    while (next < targets.length && !signal.aborted) {
+      const target = targets[next++];
+      try {
+        const out = await translateOne(text, source.code, target.code, signal);
+        if (signal.aborted) return;
+        setState(target, "done", out);
+      } catch (err) {
+        if (err.name === "AbortError") return;
+        setState(target, "error");
+      }
+    }
+  }
+  const workers = Math.min(MAX_CONCURRENCY, targets.length);
+  await Promise.all(Array.from({ length: workers }, worker));
+}
+
+function startTranslation(source, text) {
+  ctrl?.abort();
+  lastJob = { source, text };
+  setState(source, "source", text);
+  // 翻訳元に近い言語から順に処理する → 結果が波のように広がって見える
+  const targets = langs.filter(l => l !== source).sort((a, b) => dist(source, a) - dist(source, b));
+  targets.forEach(l => setState(l, "loading"));
+  execute(source, text, targets);
+}
+
+function resetAll() {
+  ctrl?.abort();
+  lastJob = null;
+  langs.forEach(l => setState(l, "idle", l.name));
+}
+
+/* ================= 入力バー ================= */
+const sourceSel = $("source"), inputEl = $("text");
+
+for (const key in families) {
+  const [famName, , famParent] = families[key];
+  const group = document.createElement("optgroup");
+  group.label = famParent ? `${famParent}｜${famName}` : famName;
+  langs.filter(l => l.family === key).forEach(l => group.append(new Option(l.name, l.code)));
+  sourceSel.append(group);
+}
+
+function pick(lang, { focus = false, pan = false } = {}) {
+  current.el.classList.remove("is-pick");
+  current = lang;
+  lang.el.classList.add("is-pick");
+  sourceSel.value = lang.code;
+  inputEl.lang = lang.code;
+  inputEl.dir = "auto";
+  inputEl.placeholder = `「${lang.name}」で入力して Enter`;
+  const ll = lang.marker.getLatLng();
+  if (pan && !map.getBounds().contains(ll)) map.panTo(ll);
+  if (focus) inputEl.focus();
+  scheduleDeclutter();
+}
+
+sourceSel.addEventListener("change", () => pick(byCode.get(sourceSel.value), { focus: true, pan: true }));
+$("form").addEventListener("submit", e => {
+  e.preventDefault();
+  const text = inputEl.value.trim();
+  if (text) startTranslation(current, text);
+});
+$("reset").addEventListener("click", resetAll);
+$("retry").addEventListener("click", () => {
+  if (!lastJob) return;
+  const failed = langs.filter(l => l.state === "error");
+  failed.forEach(l => setState(l, "loading"));
+  execute(lastJob.source, lastJob.text, failed);
+});
+$("copyAll").addEventListener("click", () => {
+  const rows = langs.filter(l => l.state === "done" || l.state === "source").map(l => `${l.name}\t${l.text}`);
+  copyText(rows.join("\n"), `${rows.length} 言語分をコピーしました`);
+});
+
+/* ================= トースト・コピー・読み上げ ================= */
+let toastTimer;
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+function copyText(text, okMsg = "コピーしました") {
+  if (!navigator.clipboard) { toast("このブラウザではコピーできません"); return; }
+  navigator.clipboard.writeText(text).then(() => toast(okMsg), () => toast("コピーに失敗しました"));
+}
+
+function speak(lang) {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(lang.text);
+  u.lang = lang.code;
+  speechSynthesis.speak(u);
+}
+
+/* ================= ラベルをクリックしたときのポップアップ ================= */
+function buildPopup(lang) {
+  const box = document.createElement("div");
+  box.className = "lp";
+
+  const head = document.createElement("div");
+  head.className = "lp-head";
+  const title = document.createElement("strong");
+  title.textContent = lang.name;
+  const fam = document.createElement("span");
+  const [famName, , famParent] = families[lang.family];
+  fam.textContent = famParent ? `${famParent}・${famName}` : famName;
+  head.append(title, fam);
+
+  const body = document.createElement("div");
+  body.className = "lp-text";
+  const hasText = lang.state === "done" || lang.state === "source";
+  if (hasText) {
+    body.lang = lang.code;
+    body.dir = "auto";
+    body.textContent = lang.text;
+  } else {
+    body.classList.add("muted");
+    body.textContent =
+      lang.state === "loading" ? "翻訳中…" :
+      lang.state === "error"   ? "翻訳に失敗しました（上部の「失敗分を再試行」で再実行できます）" :
+                                 "まだ翻訳していません";
+  }
+
+  const row = document.createElement("div");
+  row.className = "lp-actions";
+  const addButton = (label, fn, cls) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    if (cls) b.className = cls;
+    b.addEventListener("click", fn);
+    row.append(b);
+  };
+  if (hasText) {
+    if ("speechSynthesis" in window) addButton("読み上げ", () => speak(lang));
+    addButton("コピー", () => copyText(lang.text));
+  }
+  addButton("この言語から翻訳", () => { map.closePopup(); pick(lang, { focus: true }); }, "primary");
+
+  box.append(head, body, row);
+  return box;
+}
+
+/* ================= マーカー ================= */
+for (const lang of langs) {
+  const color = families[lang.family][1];
+  const marker = L.marker(lang.pos, {
+    icon: L.divIcon({
+      className: "lang-icon",
+      html: `<span class="lang-label" style="--c:${color}"><span class="ll-name" lang="ja">${lang.name}</span><span class="ll-text" dir="auto"></span></span>`,
+      iconSize: [0, 0],
+      popupAnchor: [0, -14]
+    })
+  });
+  marker.bindPopup(() => buildPopup(lang), { minWidth: 210, maxWidth: 300 });
+  marker.addTo(map);
+  lang.marker = marker;
+  lang.el = marker.getElement().querySelector(".lang-label");
+  lang.elText = lang.el.querySelector(".ll-text");
+  render(lang);
+}
+pick(current);
+scheduleDeclutter();
+if (window.innerWidth >= 700) inputEl.focus();
+
+/* ================= 語族パネル ================= */
+function highlight(key) {
+  for (const l of langs) l.el.classList.toggle("is-dim", key !== null && l.family !== key);
+}
+const canHover = matchMedia("(hover: hover)").matches;
+const famButtons = {};
+let lastParent = null;
+for (const key in families) {
+  const [name, color, parent] = families[key];
+  if (parent && parent !== lastParent) { // 印欧語族の見出し
+    const h = document.createElement("li");
+    h.className = "fam-group";
+    h.textContent = parent;
+    $("famList").append(h);
+  }
+  lastParent = parent || null;
+  const li = document.createElement("li");
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "fam";
+  const dot = document.createElement("i");
+  dot.style.background = color;
+  const label = document.createElement("span");
+  label.textContent = name;
+  const count = document.createElement("small");
+  count.textContent = langs.filter(l => l.family === key).length;
+  b.append(dot, label, count);
+  b.addEventListener("click", () => {
+    famOn[key] = !famOn[key];
+    b.classList.toggle("off", !famOn[key]);
+    scheduleDeclutter();
+  });
+  if (canHover) {
+    b.addEventListener("mouseenter", () => highlight(key));
+    b.addEventListener("mouseleave", () => highlight(null));
+  }
+  famButtons[key] = b;
+  li.append(b);
+  $("famList").append(li);
+}
+$("showAll").addEventListener("click", () => {
+  for (const key in famOn) { famOn[key] = true; famButtons[key].classList.remove("off"); }
+  scheduleDeclutter();
+});
+$("legendToggle").addEventListener("click", () => {
+  const collapsed = $("legend").classList.toggle("collapsed");
+  $("legendToggle").setAttribute("aria-expanded", String(!collapsed));
+  $("legendToggle").textContent = collapsed ? "▸" : "▾";
+});
+if (window.innerWidth < 700) {
+  $("legend").classList.add("collapsed");
+  $("legendToggle").setAttribute("aria-expanded", "false");
+  $("legendToggle").textContent = "▸";
+}
+  </script>
+</body>
+</html>
