@@ -84,6 +84,37 @@
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   footer { max-width: 1000px; margin: 0 auto; padding: 0 16px 28px; color: var(--sub); font-size: .75rem; }
+  .inner .d { color: var(--sub); font-size: .72rem; font-variant-numeric: tabular-nums; }
+
+  /* スマホ：一画面に収める */
+  @media (max-width: 799px) {
+    html, body { height: 100%; overflow: hidden; }
+    body { display: flex; flex-direction: column; height: 100dvh; min-height: 0; }
+    header { flex: none; width: 100%; padding: 10px 14px 2px; }
+    h1 { font-size: 1.05rem; }
+    header p { display: none; }
+    main { flex: 1; min-height: 0; width: 100%; padding: 8px 12px; gap: 8px; display: flex; flex-direction: column; }
+    #cam { flex: none; display: grid; grid-template-columns: 1fr auto; }
+    #view { grid-column: 1 / -1; height: 30dvh; }
+    video { height: 100%; min-height: 0; object-fit: cover; }
+    #msg { grid-column: 1 / -1; padding: 8px 14px 0; }
+    #now { padding: 8px 12px; }
+    #bar { padding: 8px 12px 8px 0; border-top: 1px solid var(--line); align-items: center; }
+    button { flex: none; padding: 6px 12px; font-size: .8rem; }
+    #result { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+    #best { flex: none; min-height: 0; padding: 12px 16px; }
+    #best .name { font-size: 1.5rem; }
+    #best .meta { margin-top: 4px; }
+    #container { flex: 1; min-height: 0; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 8px; overflow: hidden; }
+    .inner:nth-child(n+10) { display: none; }
+    .inner { display: flex; flex-direction: column; min-height: 0; }
+    .inner .chip { flex: 1; height: auto; min-height: 0; }
+    .inner .txt { padding: 5px 7px 6px; }
+    .inner .n { font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .inner .r, .inner .d { display: none; }
+    .inner .h { font-size: .65rem; margin-top: 1px; }
+    footer { flex: none; width: 100%; padding: 0 14px 8px; font-size: .6rem; }
+  }
 </style>
 </head>
 <body>
@@ -969,12 +1000,16 @@ async function startCamera() {
   }
 }
 
-video.addEventListener("loadedmetadata", () => {
+// 検出枠のサイズを、表示されている映像の拡大率に合わせる（object-fit: cover 対応）
+function layoutBox() {
   const vw = video.videoWidth, vh = video.videoHeight;
-  const side = Math.min(vw, vh) * BOX_RATIO;
-  box.style.width = (side / vw * 100) + "%";
-  box.style.height = (side / vh * 100) + "%";
-});
+  if (!vw || !vh) return;
+  const scale = Math.max(video.clientWidth / vw, video.clientHeight / vh);
+  const side = Math.min(vw, vh) * BOX_RATIO * scale;
+  box.style.width = box.style.height = side + "px";
+}
+video.addEventListener("loadedmetadata", layoutBox);
+new ResizeObserver(layoutBox).observe(video);
 
 $("switchBtn").onclick = () => {
   facing = facing === "environment" ? "user" : "environment";
@@ -1055,7 +1090,7 @@ function update() {
     chip.className = "chip"; chip.style.backgroundColor = c[1];
     const txt = document.createElement("div");
     txt.className = "txt";
-    for (const [cls, text] of [["n", n], ["r", r], ["h", c[1] + "　ΔE " + d.toFixed(1)]]) {
+    for (const [cls, text] of [["n", n], ["r", r], ["h", c[1]], ["d", "ΔE " + d.toFixed(1)]]) {
       const p = document.createElement("div");
       p.className = cls; p.textContent = text;
       txt.appendChild(p);
