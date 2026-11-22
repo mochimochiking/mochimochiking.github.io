@@ -213,7 +213,7 @@
       <label>タイトル<input type="text" name="title" value=""></label>
       <label>タイトルの大きさ
         <span class="range"><input type="range" name="titleSize" min="40" max="320" step="5" value="160"><output></output></span></label>
-      <label>タイトルのy座標
+      <label data-when="horizontal">タイトルのy座標
         <span class="range"><input type="range" name="titleY" min="0" max="720" step="5" value="160"><output></output></span></label>
       <label>日本語タイトル<input type="text" name="titleJa" value=""></label>
     </fieldset>
@@ -221,7 +221,7 @@
     <fieldset data-modes="title main4">
       <legend>文字</legend>
       <label>フォント<select name="font"></select></label>
-      <p class="hint">[RTL]が付いたフォントは、歌詞を右から左(右寄せ)で表示します。[縦]が付いたフォント(モンゴル文字・満州文字)は、1段目の「(単語|意味)」の行を縦書きにして左側に、発音表記と和訳を横書きで右側に置きます。Calibri・Segoe UI・Times New Roman は、左から右用と[RTL]用の2つがあります。</p>
+      <p class="hint">[RTL]が付いたフォントは、歌詞を右から左(右寄せ)で表示します。[縦]が付いたフォント(モンゴル文字・満州文字)は、1段目の「(単語|意味)」の行を縦書きにして左側に置きます。1列は左から、逐語訳・原文・和訳(和訳も縦書き)の順で、発音表記は横書きで右側に置きます(発音表記を「単語の位置に合わせる」にすると、発音表記は原文の列と和訳の間に、横書きのまま(回転も縮小もせず)置きます。このとき4列ぶんは、左右の余白が等しくなるように画面の幅いっぱいに配置します(単語に合わせられない行があるページは、右側に発音表記の1行を置くため、左に詰めます)。文字の背景の四角・形態素の色分けも使えます)。タイトルページも縦書きになります(原文のタイトルを左に、日本語タイトルを右に、画面の中央に並べます。「タイトルのy座標」は使いません)。Calibri・Segoe UI・Times New Roman は、左から右用と[RTL]用の2つがあります。</p>
       <label>太さ
         <span class="range"><input type="range" name="isBold" min="100" max="900" step="100" value="400"><output></output></span></label>
       <label>イタリック
@@ -280,7 +280,7 @@
         <span class="range"><input type="range" name="spacing2" min="-15" max="30" step="5" value="5"><output></output></span></label>
       <label data-when="horizontal">ルビの位置
         <span class="range"><input type="range" name="spacing4" min="60" max="115" step="5" value="85"><output></output></span></label>
-      <label data-when="horizontal">発音表記の位置
+      <label>発音表記の位置
         <select name="readMode">
           <option value="行" selected>行(左から順に)</option>
           <option value="単語">単語の位置に合わせる</option>
@@ -290,14 +290,14 @@
           <option value="なし" selected>なし</option>
           <option value="あり">あり(隣り合う(|)で色を交互に)</option>
         </select></label>
-      <label data-when="horizontal">文字の背景の四角
+      <label>文字の背景の四角
         <select name="wordBox">
           <option value="なし" selected>なし</option>
           <option value="あり">あり(発音表記を単語に合わせるとき)</option>
         </select></label>
       <p class="hint">
         <b>文字の背景の四角</b>: 発音表記を「単語の位置に合わせる」表示のとき、原語の単語(空白で区切った部分)ごとに、逐語訳・原語・発音表記を覆う半透明の四角を、文字の後ろに敷きます。色は文字の反対色です。単語と単語の間には、四角の切れ目があくようにします(空白が狭いときは、その分だけ空白を広げます)。単語の中の (|) どうしの境目にも、細い切れ目をあけます。
-        1つの単語に (|) が続くとき(例: (我|私)(的|の))は、角は単語の両端(先頭の (|) の左上・左下と、最後の (|) の右上・右下)だけを丸めます。(|) どうしの境目は直角のままです。行ごとの表示になった行には付きません。<br>
+        1つの単語に (|) が続くとき(例: (我|私)(的|の))は、角は単語の両端(先頭の (|) の左上・左下と、最後の (|) の右上・右下)だけを丸めます。(|) どうしの境目は直角のままです。行ごとの表示になった行には付きません。縦書きのフォントでは、縦の列に沿って、逐語訳・原文・発音表記の3本の列をまとめて覆う四角を敷きます。<br>
         <b>発音表記を単語に合わせる</b>: 原語の行を空白で区切った単語ごとに、発音表記の行の同じ順番の語を、その単語の中央に置きます(語の数が合わない行は、警告を出して行ごとの表示にします)。
         発音表記の語にハイフンがあるときは、ハイフンで区切って、単語の中の (|) に順番に合わせます(例: (사람|人)(이|が) に saram-i と書くと、それぞれの中央に置き、ハイフンは表示しません)。ハイフンの数が (|) の数と合わないときは、単語全体の中央に置きます。
         空白で区切らない言語(タイ語など)は、発音表記も空白なしで、ハイフンだけで区切って書きます。<br>
@@ -680,8 +680,8 @@ function stanzaPageList(src, no, id, warnings, quiet, o) {
   const n = Math.floor(lines.length / 3);
   if (!n) return [];
 
-  // 発音表記を単語に合わせるとき、行ごとに合うか確かめる(縦書きでは合わせない)
-  if (!quiet && o && o.readWord && !o.vertical) {
+  // 発音表記を単語に合わせるとき、行ごとに合うか確かめる(縦書きでも同じ)
+  if (!quiet && o && o.readWord) {
     for (let i = 0; i < n; i++) {
       const plan = readingPlan(parseLine(lines[i], false), lines[n + i]);
       const head = `連${no} ${i + 1}行目`;
@@ -1115,6 +1115,44 @@ function drawDim(ctx, o) {
   ctx.restore();
 }
 
+// 縦書きのフォント([縦])のときのタイトル: 原文のタイトル(時計回りに90°回して縦に立てる)と、日本語タイトル(縦書き)を
+// 横に並べて(原文が左、日本語が右。歌詞ページと同じ並び)、画面の中央に置く。どちらも上下は画面の中央にそろえる。
+// 長すぎるときは、原文は横に縮め、日本語は文字を小さくして、画面の高さに収める。タイトルのy座標は使わない。
+// ctx の色・影・textAlign は、呼ぶ前に決めておく。
+function drawTitleVertical(ctx, o) {
+  const maxLen = H - 80;                            // 列の最大の長さ
+  const hasT = !!o.title;
+  const hasJ = !!o.titleJa;
+  const wT = Math.round(1.1 * o.titleSize);         // 原文の列の幅(モンゴル文字は幅が広い)
+  const gap = 40;                                   // 2つの列の間隔
+
+  let ja = 160;                                     // 日本語タイトルの文字サイズ(長いときは縮める)
+  const jaFont = (sz) => `${sz}px "Century", "${JP_FONT}"`;
+  const jaLen = (sz) => { ctx.font = jaFont(sz); return vCells(ctx, o.titleJa, sz).reduce((n, c) => n + c.len, 0); };
+  if (hasJ) {
+    const len = jaLen(ja);
+    if (len > maxLen) ja = Math.max(10, Math.floor(ja * maxLen / len));
+  }
+
+  const total = (hasT ? wT : 0) + (hasT && hasJ ? gap : 0) + (hasJ ? ja : 0);
+  const left = W / 2 - total / 2;
+
+  if (hasT) {
+    ctx.save();
+    ctx.translate(left + wT / 2, H / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.font = `${o.italic} ${o.isBold} ${o.titleSize}px "${o.font}"`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(o.title, 0, 0, maxLen);
+    ctx.restore();
+  }
+  if (hasJ) {
+    jaLen(ja);                                      // ctx.font を日本語タイトルのものに決める
+    drawVerticalText(ctx, o.titleJa, left + (hasT ? wT + gap : 0) + ja / 2, H / 2, ja, false);
+  }
+}
+
 function drawTitle(ctx, o, flagImg) {
   const shadow = o.color === "black" ? "white" : "black";
   ctx.fillStyle = o.color;
@@ -1122,11 +1160,15 @@ function drawTitle(ctx, o, flagImg) {
   ctx.shadowBlur = 20;
   ctx.textAlign = "center";
 
-  ctx.font = `${o.italic} ${o.isBold} ${o.titleSize}px "${o.font}"`;
-  ctx.fillText(o.title, 640, o.titleY, 1200);
+  if (o.vertical) {
+    drawTitleVertical(ctx, o);
+  } else {
+    ctx.font = `${o.italic} ${o.isBold} ${o.titleSize}px "${o.font}"`;
+    ctx.fillText(o.title, 640, o.titleY, 1200);
 
-  ctx.font = `160px "Century", "${JP_FONT}"`;
-  ctx.fillText(o.titleJa, 640, 350, 1200);
+    ctx.font = `160px "Century", "${JP_FONT}"`;
+    ctx.fillText(o.titleJa, 640, 350, 1200);
+  }
 
   if (flagImg) {
     ctx.drawImage(flagImg, 40, 400, 300 * flagImg.width / flagImg.height, 300);
@@ -1225,7 +1267,9 @@ function makePos(ctx, disp, ligature) {
 //   すべての区画を左から(RTLは右から)並べて、原文・逐語訳・発音表記を区画の中央にそろえる。
 //   全体が画面の幅に収まらないときは、位置だけを縮める(原文は横に縮めて描く)。
 //   gloss と phon の cx を書き換え、{ cells, ratio } を返す。
-function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) {
+//   vert が真のとき(縦書き)は、逐語訳の長さを縦に並べたときの長さで測る(列に沿った方向を「横」として計算し、
+//   結果の cx・xl・xr は 40 を足した値で返る。縦書きでは 40 を引いて、列の上端からの距離として使う)。
+function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW, vert = false) {
   const cells = [];
   for (const it of model.items) {
     if (it.group) {
@@ -1249,13 +1293,18 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) {
     c.padR = 0;
   }
   for (const g of gloss) {
-    ctx.font = `27px ${g.family}`;
+    ctx.font = `${GLOSS_SIZE}px ${g.family}`;
     const c = cells.find((x) => x.group === g.it);
-    if (c) c.cw = Math.max(c.cw, ctx.measureText(g.text).width);
+    if (!c) continue;
+    const len = vert
+      ? vCells(ctx, g.text, GLOSS_SIZE).reduce((n, k) => n + k.len, 0)   // 縦に立てて並べたときの長さ
+      : ctx.measureText(g.text).width;
+    c.cw = Math.max(c.cw, len);
   }
   ctx.font = o.font2;
   for (const p of phon) {
-    const w = ctx.measureText(p.text).width;
+    // 縦書きでは、発音表記は横書きのまま置くので、列に沿った方向の長さは1行の高さ(文字サイズ)
+    const w = vert ? (Number(/(\d+(?:\.\d+)?)px/.exec(o.font2)?.[1]) || 35) : ctx.measureText(p.text).width;
     p.w = w;
     p.cells = cells.filter((c) => !c.gap && c.e > p.s && c.s < p.e);
     if (!p.cells.length) continue;
@@ -1268,7 +1317,7 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) {
 
   // ハイフンで区切った発音表記の隣り合う部分(原文に空白がない)は、発音表記の文字の間を、発音表記のフォントの半角スペース1つぶん以上あける
   ctx.font = o.font2;
-  const spaceW = ctx.measureText(" ").width;
+  const spaceW = vert ? 0 : ctx.measureText(" ").width;   // 縦書きでは、ハイフンで区切った部分が縦に並ぶだけなので、追加の間隔は不要
   const span = (p) => {                         // 発音表記の語がかかる区画の幅(余白を含む)
     const a = p.cells[0];
     const b = p.cells[p.cells.length - 1];
@@ -1586,7 +1635,7 @@ function renderPage(ctx, o, pg, bgImg, flagImg, noteImg) {
 
 /* ---------- 縦書き(モンゴル文字・満州文字) ---------- */
 // 縦書きのフォント([縦])を選ぶと、歌詞ページの1段目((単語|意味)の行)だけを縦書きにする。
-//   左の約4分の1 : 原文の縦の列(4行ぶん、左から右へ)と、その右に縦書きの逐語訳
+//   左側 : 縦の列(4行ぶん、左から右へ)。1列は、左から 縦書きの逐語訳・原文・(単語に合わせるとき)発音表記・縦書きの和訳
 //   右の約4分の3 : 発音表記と和訳(横書き)
 // 原文は、横に組んだものを時計回りに90°回して描く(モンゴル文字のフォントは、横に組むと90°寝て出るため)。
 const V_ROTATE = "ー—－―…〜～（）()「」『』【】〈〉《》[]［］｛｝<>";    // 縦書きでは、字形を90°回して描く文字
@@ -1631,21 +1680,76 @@ function drawVerticalText(ctx, text, cx, cy, size, outline) {
   }
 }
 
+// 縦書きで発音表記を単語に合わせるときの、文字の背景の四角。
+// 列に沿った方向を「横」とみなして、時計回りに90°回した座標に、横書きと同じ形の四角を敷く。
+// 横方向(列の長さ)は wordLayout の区画の範囲、縦方向(列の幅)は、逐語訳・原文・発音表記の3本の列をまとめて覆う。
+function drawWordBoxesVertical(ctx, o, info, rows, geom, top, half, phonW) {
+  ctx.save();
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "transparent";
+  ctx.fillStyle = o.color === "black" ? "white" : "black";   // 文字の反対色
+  ctx.globalAlpha = BOX_ALPHA;
+  for (const r of rows) {
+    const layout = info[r].layout;
+    if (!layout) continue;
+    const g = geom(r);
+    const xl = g.x0 - 1;                        // 列の幅の、左端・右端(画面上の位置)
+    const xr = g.pl + phonW + 1;
+    ctx.save();
+    ctx.translate(0, top);
+    ctx.rotate(Math.PI / 2);                    // 画面の (X, Y) = (-ly, top + lx)
+    let word = [];
+    const flushWord = () => {
+      word.forEach((c, k) => {
+        const first = k === 0;
+        const last = k === word.length - 1;
+        const a = first ? c.xl - 40 - BOX_PAD_X : c.xl - 40 + BOX_SEG_GAP / 2;
+        const b = last ? c.xr - 40 + BOX_PAD_X : c.xr - 40 - BOX_SEG_GAP / 2;
+        roundedPath(ctx, a, -xr, b - a, xr - xl, first ? BOX_RADIUS : 0, last ? BOX_RADIUS : 0);
+        ctx.fill();
+      });
+      word = [];
+    };
+    for (const c of layout.cells) {
+      if (c.gap) flushWord();
+      else word.push(c);
+    }
+    flushWord();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function drawMainVertical(ctx, o, pg) {
   const shadow = o.color === "black" ? "white" : "black";
   const v = o.fontSize;                             // 原文の文字サイズ(横書きと同じスライダー)
-  const rs = 27;                                    // 逐語訳の文字サイズ(横書きのルビと同じ)
+  const rs = GLOSS_SIZE;                            // 逐語訳の文字サイズ(横書きのルビと同じ)
   const half = Math.round(0.55 * v);                // 原文の字の、列の中心からの半幅(モンゴル文字は幅が広い)
-  const pitch = Math.round(2 * half + 4 + rs + 3);  // 列1本ぶんの幅(原文の半幅+逐語訳。左の余白を除く)
-  const rightX = 12 + 4 * pitch + 16;               // 右側(発音表記・和訳)の左端
-  const rightW = W - rightX - 40;
-  const top = 40 + o.spacing2;                      // 縦の列の上端
-  const colLen = H - top - 40;                      // 縦の列の長さ
-  const rmV = (s) => removeRuby(s, false);
+  const phonSize = Number(/(\d+(?:\.\d+)?)px/.exec(o.font2)?.[1]) || 35;
+  // 逐語訳と原文の間: 原文の半幅(half)には余裕を見てあるので、その分だけ詰める(文字サイズに比例)
+  const gapL = -Math.round(0.12 * v);
+  const base = 2 * half + gapL + rs + 3;            // 原文+逐語訳ぶんの列の幅
+  const jaW = JA_SIZE + 3;                          // 和訳(縦書き)の列の幅
+  const MARGIN_H = 12;                              // 左右の余白(左端の列の左側と、右端の列の右側を、これに揃える)
+  const MARGIN_V = 20;                              // 縦の列の、上下の余白
+  const top = MARGIN_V + o.spacing2;                // 縦の列の上端
+  const colLen = H - top - MARGIN_V;                // 縦の列の長さ
   const rmH = (s) => removeRuby(s, o.ligature);
   const mainFont = `${o.isBold} ${v}px "${o.font}"`;
   const rows = Array.from({ length: pg.text.length }, (_, i) => i);
   const pair = colorPair(o);
+  const oV = { ...o, ligature: false };             // 縦書きの原文では、リガチャはかけない
+
+  // 列ごとの位置(左から、逐語訳・原文・発音表記(単語に合わせるときだけ)・和訳の順)
+  //   x0=列の左端、rx=逐語訳の列の中心、cx=原文の列の中心、pl=発音表記の列の左端、px=発音表記の列の中心、jx=和訳の列の中心
+  const geom = (r) => {
+    const x0 = MARGIN_H + pitch * r;
+    const rx = x0 + Math.round(rs / 2);
+    const cx = x0 + rs + gapL + half;
+    const pl = cx + half + 3;
+    const jl = phonW ? pl + phonW + 3 : pl;
+    return { x0, rx, cx, pl, px: pl + phonW / 2, jx: jl + Math.round(JA_SIZE / 2) };
+  };
 
   /* 列ごとの下ごしらえ: 位置と長さを、先にまとめて測る */
   const info = rows.map((r) => {
@@ -1664,31 +1768,63 @@ function drawMainVertical(ctx, o, pg) {
       const b = /^【(.*)】$/.exec(g.text);
       if (b) { g.text = b[1]; g.family = `"${JP_FONT}"`; }
     }
-    return { runs, gloss };
+
+    // 発音表記を単語に合わせる行: 区画ごとに位置を決め直す(合わない行は、これまでどおり右側に1行で出す)
+    let phon = null;
+    let layout = null;
+    if (o.readWord) {
+      const plan = readingPlan(model, pg.text2[r]);
+      if (plan.ok) {
+        phon = plan.items.map((p) => ({ ...p }));
+        layout = wordLayout(ctx, oV, model, gloss, phon, mainFont, colLen, true);
+        for (const g of gloss) g.cx -= 40;      // wordLayout は 40 を足した位置で返す。列の上端からの距離に直す
+        for (const p of phon) if (p.cx != null) p.cx -= 40;
+      }
+    }
+    return { disp: model.disp, pos, runs, gloss, phon, layout };
   });
 
+  // 全行が単語に合わせられたか。合わせられない行があると、右側に発音表記の1行(横書き)を置くので、その場所を空ける。
+  const spread = rows.length > 0 && rows.every((r) => info[r].phon);
+
+  // 発音表記の列は、横書きのまま(回転も縮小もしない)置くので、幅はいちばん長い語の幅にする。
+  // 列1本ぶんの幅(pitchMin - 3)に収まる上限は、spread なら画面の幅を4等分したもの、そうでなければ右側に300pxを残したもの。
+  ctx.font = o.font2;
+  let phonW = 0;
+  for (const r of rows) for (const p of info[r].phon ?? []) phonW = Math.max(phonW, ctx.measureText(p.text).width);
+  const room = spread ? Math.floor((W - 2 * MARGIN_H + 3) / 4) : Math.floor((W - MARGIN_H - 16 - 40 - 300) / 4);
+  phonW = Math.min(Math.ceil(phonW), Math.max(phonSize, room - base - jaW - 3));   // 収まらない語は、横に縮めて描く
+  const extra = phonW ? phonW + 3 : 0;
+  const pitchMin = Math.round(base + extra + jaW);  // 列1本ぶんの最小の幅(逐語訳+原文+発音表記+和訳。右側の隙間を含む)
+
+  // 列の間隔: spread のときは、4列ぶんを左右の余白が等しくなるように、画面の幅いっぱいに割り振る。そうでなければ左に詰める。
+  // 列の位置は、ページの行数にかかわらず4列ぶんで決める(行が少ないページでも、各列の位置は変わらない)。
+  // 1列の幅は pitchMin - 3(右の隙間を除く)。最後の列の右端 = MARGIN_H + 3*pitch + (pitchMin - 3) が W - MARGIN_H になるように、列の間隔を決める
+  const pitch = spread ? Math.max(pitchMin, Math.floor((W - 2 * MARGIN_H - (pitchMin - 3)) / 3)) : pitchMin;
+  const rightX = MARGIN_H + 4 * pitch + 16;         // 右側(単語に合わせない行の発音表記)の左端
+  const rightW = W - rightX - 40;
+
   ctx.shadowColor = shadow;
+  if (o.wordBox && o.readWord) drawWordBoxesVertical(ctx, o, info, rows, geom, top, half, phonW);   // 文字より先に(後ろに)敷く
+
   for (let pass = 0; pass < 2; pass++) {            // 影を濃くするため2回重ね描きする
-    /* 右側: 発音表記と和訳(横書き) */
+    /* 右側: 発音表記を列の右隣に置けない行(単語に合わせない表示、または語数が合わない行)の発音表記(横書き) */
     ctx.save();
     ctx.fillStyle = pair[0];
     ctx.textAlign = "left";
     ctx.shadowBlur = 10;
+    ctx.font = o.font2;
     for (const r of rows) {
+      if (info[r].phon) continue;
       const y = 90 + 180 * r + o.spacing + ROW_OFFSET[r];
-      ctx.font = o.font2;
       ctx.fillText(readLine(rmH(pg.text2[r])), rightX, y, rightW);
-      ctx.font = `${JA_SIZE}px "Times New Roman", "${JP_FONT}", "Source Han Serif K"`;
-      ctx.fillText(rmH(pg.ja[r]), rightX, y + 46, rightW);
     }
     ctx.restore();
 
-    /* 左側: 縦の列(原文と、その右の逐語訳) */
+    /* 左側: 縦の列(左から、逐語訳・原文・発音表記・和訳) */
     for (const r of rows) {
-      const line = pg.text[r] ?? "";
-      const cx = 12 + pitch * r + half;                                   // 原文の列の中心
-      const rx = cx + half + 4 + Math.round(rs / 2);                      // 逐語訳の列の中心
-      const { runs, gloss } = info[r];
+      const { cx, rx, px, jx } = geom(r);
+      const { disp, pos, runs, gloss, phon, layout } = info[r];
       ctx.save();
       ctx.shadowBlur = 2;
       for (const g of gloss) {
@@ -1700,6 +1836,35 @@ function drawMainVertical(ctx, o, pg) {
         drawVerticalText(ctx, g.text, rx, top + g.cx, size, true);
       }
 
+      if (phon) {                               // 発音表記は、横書きのまま、単語の縦方向の中央に置く
+        for (const p of phon) {
+          if (p.cx == null) continue;
+          ctx.save();
+          ctx.shadowBlur = 10;
+          ctx.font = o.font2;
+          ctx.fillStyle = pair[p.color];
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(p.text, px, top + p.cx, phonW);
+          ctx.restore();
+        }
+      }
+
+      {                                         // 和訳は縦書き。列の上端から並べ、長すぎるときは文字を縮める
+        ctx.save();
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = pair[0];
+        const text = rmH(pg.ja[r]);
+        const jaFont = (sz) => `${sz}px "Times New Roman", "${JP_FONT}", "Source Han Serif K"`;
+        const lenOf = (sz) => { ctx.font = jaFont(sz); return vCells(ctx, text, sz).reduce((n, c) => n + c.len, 0); };
+        let size = JA_SIZE;
+        const total = lenOf(size);
+        if (total > colLen) size = Math.max(10, Math.floor(size * colLen / total));
+        const len = lenOf(size);                // lenOf が ctx.font も決める
+        drawVerticalText(ctx, text, jx, top + len / 2, size, false);
+        ctx.restore();
+      }
+
       ctx.translate(cx, top);                       // 時計回りに90°回して、横書きの原文を縦に立てる
       ctx.rotate(Math.PI / 2);
       ctx.font = mainFont;
@@ -1707,9 +1872,26 @@ function drawMainVertical(ctx, o, pg) {
       ctx.textBaseline = "middle";
       for (const blur of [10, 2]) {
         ctx.shadowBlur = blur;
-        if (runs.length <= 1) {
+        if (layout) {                               // 単語に合わせるとき: 区画ごとに、中央にそろえて描く
+          // 字の形(モンゴル文字のつなぎ)を保つため、行全体を描いて、区画の範囲だけ切り抜く
+          for (const c of layout.cells) {
+            if (c.gap || !c.text) continue;
+            const p0 = pos(c.s);
+            const p1 = pos(c.e);
+            ctx.save();
+            ctx.translate(c.cx - 40, 0);
+            ctx.scale(layout.ratio, 1);
+            ctx.translate(-(p0 + p1) / 2, 0);
+            ctx.beginPath();
+            ctx.rect(p0, -v * 1.5, p1 - p0, v * 3);
+            ctx.clip();
+            ctx.fillStyle = pair[c.color];
+            ctx.fillText(disp, 0, 0);
+            ctx.restore();
+          }
+        } else if (runs.length <= 1) {
           ctx.fillStyle = pair[runs.length ? runs[0].color : 0];
-          ctx.fillText(rmV(line), 0, 0, colLen);
+          ctx.fillText(disp, 0, 0, colLen);
         } else {                                    // 色の区間ごとに切り抜いて描き直す
           for (const run of runs) {
             ctx.save();
@@ -1717,7 +1899,7 @@ function drawMainVertical(ctx, o, pg) {
             ctx.rect(run.x0, -v * 1.5, run.x1 - run.x0, v * 3);
             ctx.clip();
             ctx.fillStyle = pair[run.color];
-            ctx.fillText(rmV(line), 0, 0, colLen);
+            ctx.fillText(disp, 0, 0, colLen);
             ctx.restore();
           }
         }
