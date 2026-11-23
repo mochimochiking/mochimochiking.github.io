@@ -295,6 +295,12 @@
           <option value="なし" selected>なし</option>
           <option value="あり">あり(発音表記を単語に合わせるとき)</option>
         </select></label>
+      <label>形態素の連結
+        <select name="joinMorph">
+          <option value="自動" selected>自動([RTL]・[縦]のフォントのとき)</option>
+          <option value="する">する</option>
+          <option value="しない">しない</option>
+        </select></label>
       <p class="hint">
         <b>文字の背景の四角</b>: 発音表記を「単語の位置に合わせる」表示のとき、原語の単語(空白で区切った部分)ごとに、逐語訳・原語・発音表記を覆う半透明の四角を、文字の後ろに敷きます。色は文字の反対色です。単語と単語の間には、四角の切れ目があくようにします(空白が狭いときは、その分だけ空白を広げます)。単語の中の (|) どうしの境目にも、細い切れ目をあけます。
         1つの単語に (|) が続くとき(例: (我|私)(的|の))は、角は単語の両端(先頭の (|) の左上・左下と、最後の (|) の右上・右下)だけを丸めます。(|) どうしの境目は直角のままです。行ごとの表示になった行には付きません。縦書きのフォントでは、縦の列に沿って、逐語訳・原文・発音表記の3本の列をまとめて覆う四角を敷きます。<br>
@@ -302,6 +308,7 @@
         発音表記の語にハイフンがあるときは、ハイフンで区切って、単語の中の (|) に順番に合わせます(例: (사람|人)(이|が) に saram-i と書くと、それぞれの中央に置き、ハイフンは表示しません)。ハイフンの数が (|) の数と合わないときは、単語全体の中央に置きます。
         空白で区切らない言語(タイ語など)は、発音表記も空白なしで、ハイフンだけで区切って書きます。<br>
         発音表記の「=」は、区切りにせず、表示するときに空白にします。1つの単語の発音表記に空白を入れたいときに使います(例: 1語の原語に ha=da と書くと、1語として扱い、「ha da」と表示します)。どの表示方法でも同じ書き方で使えます。行ごと(左から順に)の表示と縦書きの右側では、ハイフンも空白にして表示します。<br>
+        <b>形態素の連結</b>: アラビア文字・モンゴル文字のように字がつながる文字体系で、発音表記を「単語の位置に合わせる」表示のとき、(|) が空白なしで2つ以上続く単語では、形態素の間に隙間をあけません(字のつながりを切らず、行全体を描いて区画の範囲だけ切り抜きます)。逐語訳・発音表記は、ふつうの単語合わせと同じく、形態素ごとの枠の中央に置き、枠は注釈が全部入る幅に広げます(注釈が枠の境目にかかりません)。その代わり、満洲文字・モンゴル文字などの原文だけは、字が途切れないように、結合部が枠の境目に合う位置へ寄せて描きます((|) が2つなら、それぞれの字が自分の枠の中で境目のほうへ寄ります。3つ以上は、結合部ごとの位置の平均です)。「自動」は、[RTL]・[縦]のフォントのときだけ有効です。<br>
         <b>形態素の色分け</b>: 隣り合う (|) の色を交互に変えます(白と薄い黄色、黒と紺)。空白や (|) の外の文字をはさむと、最初の色に戻ります。逐語訳と、単語に合わせた発音表記も同じ色になります。縦書きでも使えます。
       </p>
     </fieldset>
@@ -352,6 +359,7 @@ const SETTINGS = [
   ["発音表記", "readMode"],
   ["区切り色", "segColor"],
   ["文字の背景", "wordBox"],
+  ["形態素の連結", "joinMorph"],
   ["説明サイズ", "noteSize"],
 ];
 const SETTING_BY_LABEL = new Map(SETTINGS);
@@ -565,6 +573,8 @@ function readOptions() {
     readWord:  v("readMode") === "単語",
     seg:       v("segColor") === "あり",
     wordBox:   v("wordBox") === "あり",
+    // 形態素の連結: 自動のときは、字がつながる文字体系(右から左のフォント・縦書きのフォント)で有効
+    join:      v("joinMorph") === "する" || (v("joinMorph") === "自動" && (isRtlFont(v("font")) || FONT_VERT.has(v("font")))),
     noteSize:  Number(v("noteSize")),
   };
 }
@@ -1269,12 +1279,54 @@ function makePos(ctx, disp, ligature) {
   };
 }
 
+// 形態素の連結: まとまり(隣り合う (|) が2つ以上)の中の、1列ぶんの注釈(逐語訳か発音表記)の位置を決める。
+//   list = [{ a, c, w, d }](a=注釈、c=その区画、w=注釈の長さ、d=置きたい中心の、まとまりの左端からの距離)。k=区画を縮める倍率(注釈の長さは縮まない)。
+//   位置は、まとまりの左端からの距離(区画の単位。k 倍すると縮めたあとの長さ)を a.jx に書き込む。
+//   注釈は、その形態素の中央に置く(注釈が形態素より長くても、結合部のほうへは寄せない)。
+//   隣り合う注釈が重なるときは、間を gap 以上あけて、中心の動きが最小になるように左右に広げる(等間隔の制約つき最小二乗=単調回帰)。
+//   広げたぶんで、まとまりの外にはみ出す長さを返す(呼ぶ側が、まとまりの両端に余白を足して、全部の注釈が入るだけの場所を確保する)。
+//   戻り値: まとまりの左端・右端から、はみ出す長さ { needL, needR }(縮めたあとの px)
+function placeJoined(cl, list, gap, k = 1) {
+  const items = list.slice().sort((p, q) => p.d - q.d);
+  const M = cl.M * k;
+  const want = items.map((it) => it.d * k);
+  // i番目の中心 x_i には、x_i - x_(i-1) >= (w_(i-1) + w_i) / 2 + gap が必要。y_i = x_i - o_i が単調に増えるように、o_i を引いて回帰する
+  const off = [];
+  items.forEach((it, i) => off.push(i ? off[i - 1] + (items[i - 1].w + it.w) / 2 + gap : 0));
+  const blocks = [];
+  want.forEach((d, i) => {
+    blocks.push({ sum: d - off[i], n: 1 });
+    while (blocks.length > 1) {
+      const b = blocks[blocks.length - 1];
+      const a = blocks[blocks.length - 2];
+      if (a.sum / a.n <= b.sum / b.n) break;
+      a.sum += b.sum;
+      a.n += b.n;
+      blocks.pop();
+    }
+  });
+  const ys = blocks.flatMap((b) => Array(b.n).fill(b.sum / b.n));
+  let lo = Infinity;
+  let hi = -Infinity;
+  items.forEach((it, i) => {
+    const x = ys[i] + off[i];
+    it.a.jx = x / k;
+    lo = Math.min(lo, x - it.w / 2);
+    hi = Math.max(hi, x + it.w / 2);
+  });
+  return { needL: Math.max(0, -lo), needR: Math.max(0, hi - M) };
+}
+const JOIN_GAP = 6;                             // 形態素の連結: 隣り合う注釈の最小の間隔(px)
+
 // 発音表記を単語に合わせるときの、列の計算。
 //   原文を、(|) の部分・それ以外の文字・空白に分けて「区画」にする。
 //   区画の幅は、原文と逐語訳のうち広いほう。発音表記の語がそれより広いときは、その語がかかる区画の両端に余白を足す。
 //   すべての区画を左から(RTLは右から)並べて、原文・逐語訳・発音表記を区画の中央にそろえる。
 //   全体が画面の幅に収まらないときは、位置だけを縮める(原文は横に縮めて描く)。
 //   gloss と phon の cx を書き換え、{ cells, ratio } を返す。
+//   o.join が真のとき(アラビア文字・モンゴル文字など、字がつながる文字体系): 区画の幅は、行全体を描いたときの幅(つながったままの幅)にする。
+//     (|) が空白なしで2つ以上続く「まとまり」では、注釈(逐語訳・発音表記)は、ふつうどおり区画(枠)の中央に置き、枠は注釈が入る幅に広げる。
+//     その代わり、原文の字は枠の中央に置かず、まとまりの字がつながった1本の列になるように、結合部が枠の境目に合う位置へ寄せて描く(c.tcx)。
 //   vert が真のとき(縦書き)は、逐語訳の長さを縦に並べたときの長さで測る(列に沿った方向を「横」として計算し、
 //   結果の cx・xl・xr は 40 を足した値で返る。縦書きでは 40 を引いて、列の上端からの距離として使う)。
 function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW, vert = false) {
@@ -1293,13 +1345,35 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW, vert = false) {
   }
 
   ctx.font = mainFont;
+  const join = !!o.join;
+  const pos = makePos(ctx, model.disp, o.ligature);   // 行の先頭から i 文字目までの幅(呼ぶときは ctx.font を mainFont にしておく)
   for (const c of cells) {
-    c.w0 = ctx.measureText(ligate(c.text, o.ligature)).width;
+    // 字がつながる文字体系では、行の中での幅(前後の字とつながった形の幅)で測る。区画の幅をすべて足すと、行全体の幅になる
+    c.w0 = join ? pos(c.e) - pos(c.s) : ctx.measureText(ligate(c.text, o.ligature)).width;
     c.cw = c.w0;
     if (o.wordBox && c.gap) c.cw = Math.max(c.cw, BOX_GAP + 2 * BOX_PAD_X);   // 単語の四角の間をあける
     c.padL = 0;
     c.padR = 0;
   }
+  for (const g of gloss) g.jx = null;
+  for (const p of phon) p.jx = null;
+
+  // 形態素の連結: (|) が空白なしで2つ以上続く区画を「まとまり」にする(cl.cells、cl.M=幅、各区画の lo=まとまりの左端からの位置)
+  const clusters = [];
+  if (join) {
+    for (let i = 0; i < cells.length; i++) {
+      if (!cells[i].group) continue;
+      let j = i;
+      while (j + 1 < cells.length && cells[j + 1].group) j++;
+      if (j > i) {
+        const cl = { cells: cells.slice(i, j + 1), M: 0 };
+        for (const c of cl.cells) { c.cl = cl; c.lo = cl.M; cl.M += c.w0; }
+        clusters.push(cl);
+      }
+      i = j;
+    }
+  }
+
   for (const g of gloss) {
     ctx.font = `${GLOSS_SIZE}px ${g.family}`;
     const c = cells.find((x) => x.group === g.it);
@@ -1309,6 +1383,7 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW, vert = false) {
       : ctx.measureText(g.text).width;
     c.cw = Math.max(c.cw, len);
   }
+  const multis = [];                            // 1つの (|) の中に複数語がある区画(発音表記を語ごとに置く)
   ctx.font = o.font2;
   for (const p of phon) {
     // 縦書きでは、発音表記は横書きのまま置くので、列に沿った方向の長さは1行の高さ(文字サイズ)
@@ -1316,6 +1391,22 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW, vert = false) {
     p.w = w;
     p.cells = cells.filter((c) => !c.gap && c.e > p.s && c.s < p.e);
     if (!p.cells.length) continue;
+    // 1つの (|) の中に空白があり(例: (ᠴᡳᠪ ᠴᡳᠪ|ひらひらと))、発音表記が、その中の語ごとに分かれているとき:
+    // 語ごとに、区画の中でその語がある位置に置く(同じ区画の中央に重ねない)。重なるときは間をあけて広げる
+    const one = p.cells.length === 1 ? p.cells[0] : null;
+    if (one && one.group && !one.cl && /\s/.test(one.text) && (p.s > one.s || p.e < one.e)) {
+      if (!one.multi) {
+        one.multi = { cells: [one], M: one.cw, gloss: [], phon: [] };
+        multis.push(one.multi);
+      }
+      ctx.font = mainFont;
+      const whole = pos(one.e) - pos(one.s);
+      const sub = (pos(p.s) + pos(p.e)) / 2 - pos(one.s);   // 区画の左端から、この語の中央まで(行の中での幅)
+      ctx.font = o.font2;
+      p.anchor = one;
+      one.multi.phon.push({ a: p, c: one, w: p.w, d: (one.cw - one.w0) / 2 + (whole > 0 ? sub * one.w0 / whole : one.w0 / 2) });
+      continue;
+    }
     const sum = p.cells.reduce((n, c) => n + c.cw, 0);
     if (w > sum) {                              // 発音表記のほうが広いときは、両端に余白を足す
       p.cells[0].padL += (w - sum) / 2;
@@ -1343,13 +1434,47 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW, vert = false) {
     if (gap < spaceW) pa.cells[pa.cells.length - 1].padR += spaceW - gap;
   }
 
+  // まとまりの中の逐語訳・発音表記の位置と、はみ出すぶんの余白(まとまりの両端に足す。隣が単語の続きの字なら、その字の幅までは余白にしない)。
+  // 全体が収まらないときは、区画の位置と幅だけを ratio 倍に縮める(逐語訳・発音表記の長さは縮まない)ので、
+  // 注釈は、縮めたあとの長さで重ならないように置く。r=縮める倍率で置き直して、全体の長さ(縮めたあと)を返す。
+  const phonGap = Math.max(JOIN_GAP, spaceW);
+  for (const c of cells) { c.padL0 = c.padL; c.padR0 = c.padR; }
+  const groups = multis;
+  const fit = (r) => {
+    for (const cl of groups) {
+      const first = cl.cells[0];
+      const last = cl.cells[cl.cells.length - 1];
+      const prev = cells[cells.indexOf(first) - 1];
+      const next = cells[cells.indexOf(last) + 1];
+      const roomL = prev && !prev.gap && !prev.group ? prev.w0 : 0;
+      const roomR = next && !next.gap && !next.group ? next.w0 : 0;
+      first.padL = first.padL0;
+      last.padR = last.padR0;
+      for (const [list, gap] of [[cl.gloss, JOIN_GAP], [cl.phon, phonGap]]) {
+        if (!list.length) continue;
+        const need = placeJoined(cl, list, gap, r);      // 縮めたあとの長さ(px)
+        first.padL = Math.max(first.padL, need.needL / r - roomL);
+        last.padR = Math.max(last.padR, need.needR / r - roomR);
+      }
+    }
+    return r * cells.reduce((n, c) => n + c.padL + c.cw + c.padR, 0);
+  };
+  let ratio = 1;
+  const total1 = fit(1);
+  if (total1 > maxW) {
+    ratio = maxW / total1;
+    if (groups.length) {                        // 余白は縮めたあとの長さで決まるので、収まるまで少しずつ縮める
+      for (let k = 0; k < 400 && ratio > 0.05 && fit(ratio) > maxW + 0.01; k++) ratio *= 0.995;
+    }
+    fit(ratio);
+  }
+
   let x = 0;
   for (const c of cells) {
     x += c.padL;
     c.x0 = x;
     x += c.cw + c.padR;
   }
-  const ratio = x <= maxW ? 1 : maxW / x;
   const sx = (v) => o.rtl ? W - 80 - v * ratio : 40 + v * ratio;
   for (const c of cells) {
     c.cx = sx(c.x0 + c.cw / 2);
@@ -1358,12 +1483,32 @@ function wordLayout(ctx, o, model, gloss, phon, mainFont, maxW, vert = false) {
     c.xl = Math.min(a, b);
     c.xr = Math.max(a, b);
   }
+  // 形態素の連結: 注釈は、区画(枠)の中央に置く(上の c.cx)。原文の字だけは、まとまりの中で字が途切れないように、枠の中央からずらして描く(c.tcx)。
+  //   まとまりの字は、つながった1本の列として置く。その位置は、字の結合部が、枠の境目にできるだけ合うように決める
+  //   (2つなら、結合部がちょうど境目になる=それぞれの字が自分の枠の中で、境目のほうへ寄る。3つ以上は、結合部ごとの平均。枠の外にははみ出さない)。
+  for (const c of cells) c.tcx = c.cx;
+  for (const cl of clusters) {
+    const first = cl.cells[0];
+    const last = cl.cells[cl.cells.length - 1];
+    const f0 = first.x0 - first.padL;           // 枠全体の左端・右端(区画の単位)
+    const f1 = last.x0 + last.cw + last.padR;
+    let g0 = 0;
+    for (let k = 0; k + 1 < cl.cells.length; k++) {
+      const c = cl.cells[k];
+      g0 += (c.x0 + c.cw + c.padR) - (c.lo + c.w0);   // 境目の位置 - 字の結合部の、まとまりの左端からの位置
+    }
+    g0 /= cl.cells.length - 1;
+    g0 = Math.max(f0, Math.min(f1 - cl.M, g0));
+    for (const c of cl.cells) c.tcx = sx(g0 + c.lo + c.w0 / 2);
+  }
   for (const g of gloss) {
     const c = cells.find((k) => k.group === g.it);
-    if (c) g.cx = c.cx;
+    if (!c) continue;
+    g.cx = c.cx;
   }
   for (const p of phon) {
     if (!p.cells.length) continue;
+    if (p.jx != null) { p.cx = sx(p.anchor.x0 + p.jx); continue; }   // 1つの (|) の中の複数語(multis)
     const a = p.cells[0];
     const b = p.cells[p.cells.length - 1];
     p.cx = sx((a.x0 + b.x0 + b.cw) / 2);
@@ -1491,7 +1636,7 @@ function drawMain(ctx, o, pg) {
       g.color = g.it.color;
     }
     const layout = phon ? wordLayout(ctx, o, model, gloss, phon, mainFont, maxW) : null;
-    return { runs, gloss, phon, layout };
+    return { runs, gloss, phon, layout, pos, total };
   });
 
   ctx.shadowColor = shadow;
@@ -1568,8 +1713,27 @@ function drawMain(ctx, o, pg) {
           x = 40;
           y = 70 + 180 * r + o.spacing + o.spacing2 + ROW_OFFSET[r];
         }
-        const { runs, layout } = info[r];
-        if (layout) {                           // 発音表記を単語に合わせるとき: 区画の中央に、1つずつ描く
+        const { runs, layout, pos, total } = info[r];
+        if (layout && o.join) {                 // 字がつながる文字体系: 字形を保つため、行全体を描いて、区画の範囲だけ切り抜く
+          ctx.textAlign = "left";
+          for (const c of layout.cells) {
+            if (c.gap || !c.text) continue;
+            const p0 = pos(c.s);                // 行の先頭(右から左のフォントでは右端)からの距離
+            const p1 = pos(c.e);
+            const a = rtl ? total - p1 : p0;    // 行を x=0 から左揃えで描いたときの、この区画の左端・右端
+            const b = rtl ? total - p0 : p1;
+            ctx.save();
+            ctx.translate(c.tcx, y);
+            ctx.scale(layout.ratio, 1);
+            ctx.translate(-(a + b) / 2, 0);
+            ctx.beginPath();
+            ctx.rect(a, -o.fontSize * 1.5, b - a, o.fontSize * 3);
+            ctx.clip();
+            ctx.fillStyle = pair[c.color];
+            ctx.fillText(str, 0, 0);
+            ctx.restore();
+          }
+        } else if (layout) {                    // 発音表記を単語に合わせるとき: 区画の中央に、1つずつ描く
           ctx.textAlign = "center";
           for (const c of layout.cells) {
             if (c.gap || !c.text) continue;
@@ -1887,7 +2051,7 @@ function drawMainVertical(ctx, o, pg) {
             const p0 = pos(c.s);
             const p1 = pos(c.e);
             ctx.save();
-            ctx.translate(c.cx - 40, 0);
+            ctx.translate(c.tcx - 40, 0);
             ctx.scale(layout.ratio, 1);
             ctx.translate(-(p0 + p1) / 2, 0);
             ctx.beginPath();
